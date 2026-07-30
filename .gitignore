@@ -1,0 +1,49 @@
+# ─────────────────────────────────────────────────────────────
+# Tài liệu nội bộ — KHÔNG đẩy lên nếu repo là PUBLIC
+# Nếu repo là PRIVATE và cả nhóm cần xem, xoá 3 dòng dưới đây.
+# File vẫn nằm nguyên trong docs/ trên máy, chỉ là không lên GitHub.
+# ─────────────────────────────────────────────────────────────
+docs/01.Mock-Project-Guidline.pdf
+docs/02.Project-Requirement.pdf
+docs/Phan-Cong-Cong-Viec-*.docx
+
+# ── Bí mật ──
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ── Node / Frontend ──
+node_modules/
+dist/
+build/
+.vite/
+*.local
+
+# ── Database / Storage cục bộ ──
+*.db
+*.sqlite3
+pgdata/
+minio-data/
+
+# ── IDE ──
+.vscode/
+.idea/
+*.swp
+
+# ── macOS ──
+.DS_Store
