@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
+import { ChatPage } from '@/features/chat/ChatPage'
 import { CreateTicketPage } from '@/features/tickets/CreateTicketPage'
 import { MyTicketsPage } from '@/features/tickets/MyTicketsPage'
 import { QueuePage } from '@/features/tickets/QueuePage'
@@ -72,7 +73,7 @@ export default function App() {
                 }
               />
 
-              <Route path="/chat" element={<Placeholder title="Trợ lý ảo" />} />
+              <Route path="/chat" element={<ChatPage />} />
               <Route path="/kb" element={<Placeholder title="Tài liệu hướng dẫn" />} />
               <Route path="/dashboard" element={<Placeholder title="Báo cáo" />} />
               <Route

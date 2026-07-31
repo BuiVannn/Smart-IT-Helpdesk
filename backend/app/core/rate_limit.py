@@ -126,8 +126,15 @@ class AttemptLimiter:
             headers={"Retry-After": str(seconds)},
         )
 
-    def record_failure(self, identifier: str) -> int:
+    def record(self, identifier: str) -> int:
+        """Ghi nhận một lần dùng hạn mức. Trả về số lần đã dùng trong cửa sổ."""
         return self.store.incr(self._key(identifier), self.window_seconds)
+
+    def record_failure(self, identifier: str) -> int:
+        """Bí danh của `record()` cho ngữ cảnh đăng nhập, nơi thứ được đếm là
+        số lần THẤT BẠI. Chỗ khác (ví dụ hạn mức gọi LLM) đếm số lần DÙNG —
+        cùng cơ chế, khác ý nghĩa, nên gọi đúng tên để đọc code không hiểu nhầm."""
+        return self.record(identifier)
 
     def reset(self, identifier: str) -> None:
         """Gọi khi đăng nhập thành công — chuỗi thất bại đã bị cắt."""

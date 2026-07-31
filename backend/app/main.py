@@ -12,6 +12,13 @@ from app.core.error_handlers import register_error_handlers
 from app.core.logging import get_logger, setup_logging
 from app.core.middleware import RequestContextMiddleware
 
+# ★ BẮT BUỘC — nạp TOÀN BỘ model trước khi SQLAlchemy dựng mapper.
+# Quan hệ khai báo bằng chuỗi (ví dụ ChatCitation.article -> "KbArticle") chỉ
+# phân giải được khi lớp đích đã được nạp. Thiếu dòng này, ứng dụng khởi động
+# bình thường rồi vỡ ở REQUEST ĐẦU TIÊN với lỗi "failed to locate a name".
+# Test không bắt được vì conftest.py đã tự nạp all_models từ trước.
+from app.db import all_models  # noqa: E402,F401  (đặt sau import trên là cố ý)
+
 setup_logging(settings.LOG_LEVEL)
 logger = get_logger(__name__)
 

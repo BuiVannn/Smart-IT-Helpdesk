@@ -15,6 +15,8 @@
 import { HttpResponse, http } from 'msw'
 import type {
   AllowedTransitions,
+  ChatMessage,
+  ChatSession,
   CurrentUser,
   Page,
   QueueStats,
@@ -70,7 +72,79 @@ const db = {
   tickets: [] as Ticket[],
   comments: {} as Record<string, TicketComment[]>,
   events: {} as Record<string, TicketEvent[]>,
+  sessions: [] as ChatSession[],
+  chatMessages: {} as Record<string, ChatMessage[]>,
 }
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** Y HỆT chuỗi ở backend (chatbot/prompts.py). Lệch nhau thì giao diện được
+ *  thử với một câu từ chối khác câu thật, và ta không kiểm được cách nó hiển thị. */
+const NO_CONTEXT_ANSWER =
+  'Tôi chưa tìm thấy hướng dẫn cho vấn đề này trong kho tài liệu nội bộ.\n\n' +
+  'Bạn có thể tạo một yêu cầu hỗ trợ để đội IT xử lý trực tiếp — ' +
+  'đội IT thường phản hồi trong vòng vài giờ làm việc.'
+
+/** Vài câu trả lời mẫu bám theo bài viết CÓ THẬT trong seeds/kb/. */
+const KB_ANSWERS = [
+  {
+    keywords: ['mật khẩu email', 'đổi mật khẩu', 'mat khau'],
+    answer:
+      'Bạn đổi mật khẩu email công ty theo các bước sau:\n\n' +
+      '1. Truy cập cổng tự phục vụ của công ty và đăng nhập bằng tài khoản hiện tại.\n' +
+      '2. Chọn mục "Đổi mật khẩu".\n' +
+      '3. Nhập mật khẩu cũ, rồi nhập mật khẩu mới hai lần.\n' +
+      '4. Mật khẩu mới phải dài tối thiểu 12 ký tự, có chữ hoa, chữ thường và số.\n\n' +
+      'Lưu ý: đội IT không bao giờ hỏi mật khẩu của bạn qua email hay điện thoại.',
+    citations: [
+      { articleId: 'a1', title: 'Hướng dẫn đổi mật khẩu email công ty',
+        slug: 'doi-mat-khau-email', score: 0.87, rank: 1 },
+      { articleId: 'a2', title: 'Chính sách mật khẩu công ty',
+        slug: 'chinh-sach-mat-khau', score: 0.71, rank: 2 },
+    ],
+  },
+  {
+    keywords: ['wifi', 'mạng', 'internet'],
+    answer:
+      'Để kết nối WiFi công ty:\n\n' +
+      '1. Bật WiFi và chọn mạng CTY-WIFI trong danh sách.\n' +
+      '2. Nhập tài khoản domain của bạn (không phải email cá nhân).\n' +
+      '3. Chấp nhận chứng chỉ bảo mật khi được hỏi.\n\n' +
+      'Nếu không thấy tên mạng, hãy thử tắt/bật lại WiFi hoặc khởi động lại máy.',
+    citations: [
+      { articleId: 'a3', title: 'Hướng dẫn kết nối WiFi công ty',
+        slug: 'ket-noi-wifi', score: 0.84, rank: 1 },
+      { articleId: 'a4', title: 'Khắc phục khi mất kết nối mạng',
+        slug: 'mat-ket-noi-mang', score: 0.66, rank: 2 },
+    ],
+  },
+  {
+    keywords: ['chậm', 'cham', 'lag'],
+    answer:
+      'Máy tính chạy chậm, bạn có thể tự kiểm tra vài bước trước:\n\n' +
+      '1. Mở Task Manager xem ứng dụng nào chiếm nhiều CPU hoặc RAM.\n' +
+      '2. Kiểm tra ổ đĩa còn trống ít nhất 15% dung lượng.\n' +
+      '3. Khởi động lại máy — nhiều sự cố hết sau bước này.\n' +
+      '4. Gỡ các phần mềm tự khởi động mà bạn không dùng.',
+    citations: [
+      { articleId: 'a5', title: 'Máy tính chạy chậm — cách tự kiểm tra',
+        slug: 'may-tinh-cham', score: 0.79, rank: 1 },
+    ],
+  },
+  {
+    keywords: ['lừa đảo', 'lua dao', 'phishing', 'email lạ'],
+    answer:
+      'Dấu hiệu nhận biết email lừa đảo:\n\n' +
+      '1. Địa chỉ người gửi gần giống nhưng không đúng tên miền công ty.\n' +
+      '2. Nội dung tạo cảm giác gấp gáp: "tài khoản sẽ bị khoá trong 24 giờ".\n' +
+      '3. Yêu cầu bạn nhập mật khẩu qua một đường dẫn lạ.\n\n' +
+      'Nếu nghi ngờ: KHÔNG bấm vào liên kết, không trả lời, và báo ngay cho đội IT.',
+    citations: [
+      { articleId: 'a6', title: 'Nhận diện và xử lý email lừa đảo',
+        slug: 'email-lua-dao', score: 0.91, rank: 1 },
+    ],
+  },
+]
 
 function nextId(prefix: string): string {
   return `${prefix}-${Math.random().toString(16).slice(2, 10)}`
@@ -422,6 +496,111 @@ export const handlers = [
     const ticket = findVisible(params.id as string)
     if (!ticket) return error('NOT_FOUND', 'Không tìm thấy ticket', 404)
     return HttpResponse.json(db.events[ticket.id] ?? [])
+  }),
+
+  /* ── Trợ lý ảo ─────────────────────────────────────────────── */
+
+  http.post(`${BASE}/chat/sessions`, async ({ request }) => {
+    const body = (await request.json()) as { title?: string | null }
+    const session: ChatSession = {
+      id: nextId('cs'),
+      title: body.title ?? null,
+      messageCount: 0,
+      ledToTicket: false,
+      createdAt: new Date().toISOString(),
+      lastMessageAt: null,
+    }
+    db.sessions.unshift(session)
+    db.chatMessages[session.id] = []
+    return HttpResponse.json(session, { status: 201 })
+  }),
+
+  http.get(`${BASE}/chat/sessions`, ({ request }) => {
+    const url = new URL(request.url)
+    return HttpResponse.json(
+      paginate(db.sessions, Number(url.searchParams.get('page') ?? 1), 30),
+    )
+  }),
+
+  http.get(`${BASE}/chat/sessions/:id`, ({ params }) => {
+    const session = db.sessions.find((s) => s.id === params.id)
+    if (!session) return error('NOT_FOUND', 'Không tìm thấy cuộc trò chuyện', 404)
+    return HttpResponse.json({ ...session, messages: db.chatMessages[session.id] ?? [] })
+  }),
+
+  http.get(`${BASE}/chat/config`, () =>
+    HttpResponse.json({
+      maxQuestionLength: 1000,
+      rateLimitPerWindow: 30,
+      rateLimitWindowSeconds: 300,
+      model: 'fake',
+    }),
+  ),
+
+  /**
+   * Luồng SSE giả lập.
+   *
+   * ★ Phát token CHẬM DẦN theo từng mẩu chứ không trả một cục: chỉ khi chữ
+   * thực sự chảy ra ta mới thấy được lỗi tự cuộn, lỗi con trỏ nhấp nháy, hay
+   * lỗi tách khung SSE. Mock trả một lần thì mọi thứ trông hoàn hảo cho tới
+   * lúc nối backend thật.
+   */
+  http.post(`${BASE}/chat/sessions/:id/messages`, async ({ params, request }) => {
+    const session = db.sessions.find((s) => s.id === params.id)
+    if (!session) return error('NOT_FOUND', 'Không tìm thấy cuộc trò chuyện', 404)
+
+    const { question } = (await request.json()) as { question: string }
+    const known = KB_ANSWERS.find((a) =>
+      a.keywords.some((k) => question.toLowerCase().includes(k)),
+    )
+
+    const messages = db.chatMessages[session.id]
+    messages.push({
+      id: nextId('msg'), role: 'USER', content: question,
+      noContextFound: false, citations: [], latencyMs: null,
+      createdAt: new Date().toISOString(),
+    })
+
+    const answer = known?.answer ?? NO_CONTEXT_ANSWER
+    const citations = known?.citations ?? []
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder()
+        const frame = (event: string, data: unknown) =>
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`))
+
+        await sleep(400)                       // thời gian "tra cứu tài liệu"
+        frame('citations', { citations })
+
+        for (const piece of answer.match(/\S+\s*/g) ?? []) {
+          await sleep(28)
+          frame('token', { delta: piece })
+        }
+
+        const saved = {
+          id: nextId('msg'), role: 'ASSISTANT' as const, content: answer,
+          noContextFound: !known, citations, latencyMs: 1200,
+          createdAt: new Date().toISOString(),
+        }
+        messages.push(saved)
+        session.messageCount = messages.length
+        session.lastMessageAt = saved.createdAt
+        if (!session.title) session.title = question.slice(0, 60)
+
+        frame('done', {
+          messageId: saved.id,
+          noContextFound: !known,
+          canCreateTicket: !known,
+          latencyMs: 1200,
+        })
+        controller.close()
+      },
+    })
+
+    return new HttpResponse(stream, {
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+    })
   }),
 
   http.get(`${BASE}/notifications/unread-count`, () => HttpResponse.json({ count: 3 })),

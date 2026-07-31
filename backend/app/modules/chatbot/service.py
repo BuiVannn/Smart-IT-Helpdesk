@@ -22,6 +22,7 @@ trên tài liệu nào, trong khi câu trả lời còn đang sinh.
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -88,8 +89,12 @@ class ChatService:
         chat_session = self._get_session(session_id, user_id)
         started = time.perf_counter()
 
-        # Lưu câu hỏi trước — nếu tiến trình chết giữa chừng, câu hỏi vẫn còn
+        # Lưu câu hỏi trước — nếu tiến trình chết giữa chừng, câu hỏi vẫn còn.
+        # PHẢI commit chứ không chỉ flush: flush mới đẩy xuống transaction,
+        # session đóng là mất sạch. Câu hỏi được ghi bền vững ngay tại đây,
+        # trước cả khi biết có trả lời được hay không.
         self._save_message(chat_session, MessageRole.USER, question)
+        self.db.commit()
 
         history = self._recent_history(session_id)
 
@@ -125,6 +130,7 @@ class ChatService:
                 no_context_found=True,
                 latency_ms=round((time.perf_counter() - started) * 1000),
             )
+            self.db.commit()
             yield ChatEvent("done", {
                 "messageId": str(message.id),
                 "noContextFound": True,
@@ -158,6 +164,7 @@ class ChatService:
             if parts:
                 # Đã stream được một phần — lưu lại thay vì vứt bỏ
                 self._save_message(chat_session, MessageRole.ASSISTANT, "".join(parts))
+                self.db.commit()
             yield self._error_event()
             return
 
@@ -167,6 +174,7 @@ class ChatService:
             chat_session, MessageRole.ASSISTANT, answer, latency_ms=latency
         )
         self._save_citations(message, retrieval.chunks)
+        self.db.commit()
 
         yield ChatEvent("done", {
             "messageId": str(message.id),
@@ -231,6 +239,9 @@ class ChatService:
         )
         self.db.add(message)
         chat_session.message_count += 1
+        # Không có dòng này thì danh sách phiên luôn sắp xếp theo ngày TẠO,
+        # nên phiên vừa nhắn vẫn nằm dưới phiên mở từ tuần trước.
+        chat_session.last_message_at = datetime.now(UTC)
         self.db.flush()
         return message
 

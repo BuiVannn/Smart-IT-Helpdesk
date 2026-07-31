@@ -105,6 +105,61 @@ export interface QueueStats {
   breached: number
 }
 
+/* ── Trợ lý ảo (F4) ──────────────────────────────────────────────── */
+
+export interface Citation {
+  articleId: string
+  title: string
+  slug: string
+  score: number
+  rank: number
+}
+
+export interface ChatSession {
+  id: string
+  title: string | null
+  messageCount: number
+  ledToTicket: boolean
+  createdAt: string
+  lastMessageAt: string | null
+}
+
+export interface ChatMessage {
+  id: string
+  role: 'USER' | 'ASSISTANT' | 'SYSTEM'
+  content: string
+  noContextFound: boolean
+  citations: Citation[]
+  latencyMs: number | null
+  createdAt: string
+}
+
+export interface ChatSessionDetail extends ChatSession {
+  messages: ChatMessage[]
+}
+
+/**
+ * Sự kiện trong luồng SSE. Backend cam kết thứ tự:
+ *   citations → token* → done   |   hoặc error rồi dừng
+ */
+export type ChatEvent =
+  | { type: 'citations'; data: { citations: Citation[] } }
+  | { type: 'token'; data: { delta: string } }
+  | {
+      type: 'done'
+      data: {
+        messageId: string
+        noContextFound: boolean
+        canCreateTicket?: boolean
+        latencyMs: number
+        promptVersion?: string
+      }
+    }
+  | {
+      type: 'error'
+      data: { code: string; message: string; canCreateTicket?: boolean }
+    }
+
 export interface CreateTicketInput {
   title: string
   description: string
