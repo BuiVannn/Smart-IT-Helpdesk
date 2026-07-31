@@ -7,6 +7,12 @@ Quy tắc:
 - KHÔNG commit — việc mở/đóng transaction là của service
 """
 
+from __future__ import annotations
+
+# ⚠️ Dòng trên là BẮT BUỘC ở file này: phương thức `list()` che mất builtin
+# `list` trong phạm vi class, nên annotation `-> list[User]` viết sau nó sẽ nổ
+# `TypeError: 'function' object is not subscriptable`. Hoãn đánh giá annotation
+# là cách sửa gọn nhất mà vẫn giữ được tên phương thức tự nhiên.
 from uuid import UUID
 
 from sqlalchemy import Select, func, select

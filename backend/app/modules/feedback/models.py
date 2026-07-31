@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, SmallInteger, String
+from sqlalchemy import CheckConstraint, ForeignKey, SmallInteger, String
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
