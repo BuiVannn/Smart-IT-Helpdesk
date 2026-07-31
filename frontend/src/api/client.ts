@@ -130,6 +130,48 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 }
 
+/**
+ * Fetch cho luồng SSE — trả về Response THÔ để bên gọi tự đọc body theo dòng.
+ *
+ * Không dùng chung `request()` được vì hàm đó `await res.json()`, tức là chờ
+ * toàn bộ phản hồi kết thúc — đúng thứ mà streaming sinh ra để tránh.
+ *
+ * Cũng KHÔNG dùng EventSource được: EventSource chỉ gửi GET và không đặt được
+ * header, nên không mang theo được Bearer token.
+ *
+ * KHÔNG đặt timeout: một câu trả lời dài có thể stream lâu hơn 10 giây mà vẫn
+ * hoàn toàn bình thường. Việc huỷ do `signal` bên gọi quyết định.
+ */
+export async function fetchStream(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+  _isRetry = false,
+): Promise<Response> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'text/event-stream',
+  }
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    signal,
+    body: JSON.stringify(body),
+  })
+
+  if (res.status === 401 && !_isRetry) {
+    const ok = await refreshToken()
+    if (ok) return fetchStream(path, body, signal, true)
+    onUnauthenticated?.()
+    throw new ApiError('UNAUTHENTICATED', 'Phiên đăng nhập đã hết hạn', 401)
+  }
+  if (!res.ok) throw await parseError(res)
+  return res
+}
+
 export const api = {
   get: <T>(path: string, opts?: RequestOptions) =>
     request<T>(path, { ...opts, method: 'GET' }),

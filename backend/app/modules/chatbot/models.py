@@ -82,6 +82,9 @@ class ChatCitation(Base, UUIDPrimaryKeyMixin):
     rank: Mapped[int] = mapped_column(SmallInteger, nullable=False)
 
     message: Mapped[ChatMessage] = relationship(back_populates="citations")
+    # Nạp sẵn bài viết để hiển thị tiêu đề + đường dẫn trong lịch sử hội thoại.
+    # Chỉ là quan hệ ORM, không thêm cột nào nên không cần migration.
+    article = relationship("KbArticle", lazy="joined")
 
 
 class ChatFeedback(Base, UUIDPrimaryKeyMixin):

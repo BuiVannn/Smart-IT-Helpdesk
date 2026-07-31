@@ -29,7 +29,7 @@ from uuid import uuid4  # noqa: E402
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import select  # noqa: E402
+from sqlalchemy import func, select  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 
 from app.ai.embedding.fake_embedding import FakeEmbeddingClient  # noqa: E402
@@ -90,16 +90,33 @@ def db(db_connection) -> Iterator[Session]:
 
 
 @pytest.fixture(autouse=True)
-def _reset_login_limiter():
-    """Xoá bộ đếm đăng nhập giữa các test.
+def _reset_rate_limiters():
+    """Xoá mọi bộ đếm giới hạn tần suất giữa các test.
 
     Bộ đếm sống ở cấp tiến trình, nên test "sai mật khẩu 5 lần" sẽ làm test
     đăng nhập chạy sau nó nhận 429 — hỏng ngẫu nhiên theo thứ tự chạy.
     """
     from app.modules.auth import router as auth_router_module
+    from app.modules.chatbot import router as chat_router_module
 
     auth_router_module._login_limiter.store = MemoryAttemptStore()
+    chat_router_module._ask_limiter.store = MemoryAttemptStore()
     yield
+
+
+@pytest.fixture
+def seeded_kb(db):
+    """Bỏ qua test nếu kho tri thức chưa được index.
+
+    Test này kiểm tra tầng HTTP, không seed hộ dữ liệu:
+        python scripts/seed_kb.py && python scripts/reindex_kb.py --all
+    """
+    from app.modules.knowledge.models import ArticleChunk
+
+    count = db.execute(select(func.count()).select_from(ArticleChunk)).scalar_one()
+    if count == 0:
+        pytest.skip("Chưa có chunk nào — chạy scripts/reindex_kb.py --all trước")
+    return count
 
 
 @pytest.fixture
@@ -109,12 +126,22 @@ def client(db) -> Iterator[TestClient]:
     Dùng chung là bắt buộc: nếu endpoint mở session riêng, nó sẽ không thấy
     dữ liệu test vừa tạo (còn nằm trong transaction chưa commit).
     """
+    from contextlib import nullcontext
+
+    from app.modules.chatbot.router import get_stream_session
+
     app.dependency_overrides[get_db] = lambda: db
+    # Luồng SSE tự mở session riêng ở production (xem chatbot/router.py). Trong
+    # test phải trỏ nó về CÙNG session, nếu không nó nhìn vào transaction khác
+    # và không thấy dữ liệu test vừa tạo. `nullcontext` để nó không đóng
+    # session dùng chung khi luồng kết thúc.
+    app.dependency_overrides[get_stream_session] = lambda: nullcontext(db)
     try:
         with TestClient(app) as test_client:
             yield test_client
     finally:
         app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_stream_session, None)
 
 
 @pytest.fixture
