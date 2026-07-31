@@ -4,6 +4,10 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
+import { CreateTicketPage } from '@/features/tickets/CreateTicketPage'
+import { MyTicketsPage } from '@/features/tickets/MyTicketsPage'
+import { QueuePage } from '@/features/tickets/QueuePage'
+import { TicketDetailPage } from '@/features/tickets/TicketDetailPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,8 +57,21 @@ export default function App() {
               }
             >
               <Route path="/" element={<HomeRedirect />} />
-              <Route path="/my-tickets" element={<Placeholder title="Yêu cầu của tôi" />} />
-              <Route path="/queue" element={<Placeholder title="Hàng chờ xử lý" />} />
+
+              <Route path="/my-tickets" element={<MyTicketsPage />} />
+              {/* "/tickets/new" phải đứng TRƯỚC "/tickets/:id", nếu không
+                  react-router khớp "new" như một id và gọi API với id sai */}
+              <Route path="/tickets/new" element={<CreateTicketPage />} />
+              <Route path="/tickets/:id" element={<TicketDetailPage />} />
+              <Route
+                path="/queue"
+                element={
+                  <ProtectedRoute roles={['IT_AGENT', 'ADMIN']}>
+                    <QueuePage />
+                  </ProtectedRoute>
+                }
+              />
+
               <Route path="/chat" element={<Placeholder title="Trợ lý ảo" />} />
               <Route path="/kb" element={<Placeholder title="Tài liệu hướng dẫn" />} />
               <Route path="/dashboard" element={<Placeholder title="Báo cáo" />} />

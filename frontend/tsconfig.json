@@ -15,7 +15,10 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "baseUrl": ".",
-    "paths": { "@/*": ["./src/*"] }
+    "paths": { "@/*": ["./src/*"] },
+    // Thiếu dòng này thì `import.meta.env` không có kiểu và `npm run typecheck`
+    // hỏng ngay từ file đầu tiên — lỗi tồn từ lúc dựng base, chưa ai chạy nên chưa lộ.
+    "types": ["vite/client"]
   },
   "include": ["src"]
 }

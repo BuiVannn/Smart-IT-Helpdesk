@@ -63,13 +63,50 @@ Bắt đầu từ [`docs/design/00-README.md`](docs/design/00-README.md) — ch�
 
 ## Cài đặt & chạy
 
-> Sẽ cập nhật khi hoàn thành Task T01–T02 trong [`tasks/plan.md`](tasks/plan.md).
-
 ```bash
 git clone git@github.com:BuiVannn/Smart-IT-Helpdesk.git
 cd Smart-IT-Helpdesk
-cp .env.example .env
-docker compose up
+cp .env.example .env          # sửa POSTGRES_PORT nếu máy bạn đã dùng 5432
+docker compose up -d postgres redis
+```
+
+### Backend
+
+```bash
+cd backend
+uv sync                       # hoặc: pip install -e .
+alembic upgrade head          # tạo 21 bảng, index, trigger
+python scripts/seed.py        # phòng ban, loại sự cố, SLA, 5 tài khoản dev
+python scripts/seed_kb.py     # 20 bài viết kho tri thức
+python scripts/reindex_kb.py --all   # sinh vector cho chatbot
+uvicorn app.main:app --reload # http://localhost:8000/docs
+```
+
+**Tài khoản dev** (chỉ có ở môi trường local, mật khẩu `Password123`):
+
+| Email | Vai trò |
+|---|---|
+| `admin@company.com` | ADMIN |
+| `agent1@company.com` · `agent2@company.com` | IT_AGENT |
+| `employee1@company.com` · `employee2@company.com` | EMPLOYEE |
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+cp .env.example .env.local
+npm run dev                   # http://localhost:5173
+```
+
+Mặc định `VITE_USE_MOCK=true` — giao diện chạy **hoàn toàn không cần backend**
+nhờ MSW. Đặt `false` trong `.env.local` để gọi API thật.
+
+### Kiểm thử
+
+```bash
+cd backend  && pytest                       # 264 test
+cd frontend && npm run typecheck && npm run lint && npm run build
 ```
 
 ---
@@ -78,11 +115,21 @@ docker compose up
 
 ```
 Smart-IT-Helpdesk/
-├── docs/design/        Tài liệu phân tích & thiết kế
+├── docs/design/        Tài liệu phân tích & thiết kế (11 tài liệu + 11 ADR)
 ├── tasks/              Kế hoạch triển khai và checklist
-├── backend/            FastAPI (chưa có)
-├── frontend/           React + Vite (chưa có)
-└── docker-compose.yml  (chưa có)
+├── backend/
+│   ├── app/core/       Cấu hình, bảo mật, lỗi, phân trang, giới hạn tần suất
+│   ├── app/db/         Base, session, mixin
+│   ├── app/modules/    auth · users · tickets · knowledge · chatbot · …
+│   ├── app/ai/         LLM, embedding, retriever, chống lỗi
+│   ├── migrations/     Alembic
+│   └── tests/          unit · api · integration
+├── frontend/src/
+│   ├── api/            Wrapper fetch + lời gọi API
+│   ├── components/     UI dùng chung, layout
+│   ├── features/       auth · tickets · …
+│   └── mocks/          MSW — chạy được khi backend chưa xong
+└── docker-compose.yml
 ```
 
 ---

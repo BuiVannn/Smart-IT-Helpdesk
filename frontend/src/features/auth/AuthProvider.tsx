@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api, setUnauthenticatedHandler, tokenStore } from '@/api/client'
-import type { UserBrief } from '@/types'
+import type { CurrentUser } from '@/types'
 
 interface AuthState {
-  user: UserBrief | null
+  user: CurrentUser | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
@@ -15,11 +15,11 @@ const AuthContext = createContext<AuthState | null>(null)
 interface LoginResponse {
   accessToken: string
   expiresIn: number
-  user: UserBrief
+  user: CurrentUser
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserBrief | null>(null)
+  const [user, setUser] = useState<CurrentUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   const logout = useCallback(async () => {
