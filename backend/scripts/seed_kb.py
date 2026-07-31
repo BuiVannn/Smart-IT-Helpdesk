@@ -14,7 +14,6 @@ cho chatbot RAG (script đó thuộc task T21).
 import argparse
 import re
 import sys
-import unicodedata
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -69,13 +68,9 @@ def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     return meta, body.strip()
 
 
-def slugify(text: str) -> str:
-    """Chuyển tiêu đề tiếng Việt thành slug không dấu."""
-    normalized = unicodedata.normalize("NFD", text)
-    ascii_text = "".join(c for c in normalized if unicodedata.category(c) != "Mn")
-    ascii_text = ascii_text.replace("đ", "d").replace("Đ", "D")
-    return re.sub(r"[^a-z0-9]+", "-", ascii_text.lower()).strip("-")
-
+# slugify đã chuyển sang app/modules/knowledge/slug.py để API tạo bài viết và
+# script này dùng CHUNG một cách sinh slug. Bản ở đây vốn không được gọi lần
+# nào — giữ lại chỉ tạo cơ hội cho hai bản trôi khác nhau.
 
 REQUIRED_FIELDS = ("slug", "title", "category")
 

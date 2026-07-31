@@ -99,6 +99,12 @@ class IndexingService:
             for chunk, vector in zip(chunks, vectors, strict=True)
         ])
 
+        # `updated_at` có onupdate=func.now(), nên lệnh UPDATE này cũng đẩy nó
+        # lên. Ở đây vô hại: cả hai cột đều nhận `now()` của CÙNG một câu lệnh
+        # nên bằng nhau, và điều kiện "cũ" là `indexed_at < updated_at`.
+        #
+        # ⚠️ Nhưng mọi lệnh UPDATE KHÁC lên hàng này thì KHÔNG vô hại — xem
+        # `KbArticleRepository.increment_view`.
         article.indexed_at = func.now()
         self.session.flush()
 

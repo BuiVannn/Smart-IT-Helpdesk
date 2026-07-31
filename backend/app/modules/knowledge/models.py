@@ -71,6 +71,11 @@ class KbArticle(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     chunks: Mapped[list["ArticleChunk"]] = relationship(
         back_populates="article", cascade="all, delete-orphan"
     )
+    # Quan hệ ORM thuần, không thêm cột nên không cần migration.
+    category: Mapped[KbCategory | None] = relationship(
+        foreign_keys=[kb_category_id]
+    )
+    author = relationship("User")
 
     __table_args__ = (
         CheckConstraint(
