@@ -13,9 +13,18 @@ class DomainError(Exception):
     http_status: int = 500
     default_message: str = "Đã có lỗi xảy ra"
 
-    def __init__(self, message: str | None = None, details: Any = None) -> None:
+    def __init__(
+        self,
+        message: str | None = None,
+        details: Any = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         self.message = message or self.default_message
         self.details = details
+        # Một số lỗi cần kèm header theo chuẩn HTTP — ví dụ 429 phải có
+        # `Retry-After` thì client mới biết chờ bao lâu. Service vẫn không
+        # biết gì về HTTP: nó chỉ khai báo header, error_handlers gắn vào.
+        self.headers = headers
         super().__init__(self.message)
 
 

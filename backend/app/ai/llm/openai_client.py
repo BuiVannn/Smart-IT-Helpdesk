@@ -142,26 +142,28 @@ class OpenAiLlmClient:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=settings.LLM_TIMEOUT_CHAT) as client:
-                async with client.stream(
+            async with (
+                httpx.AsyncClient(timeout=settings.LLM_TIMEOUT_CHAT) as client,
+                client.stream(
                     "POST",
                     f"{self._base_url}/chat/completions",
                     headers={"Authorization": f"Bearer {self._api_key}"},
                     json=payload,
-                ) as response:
-                    response.raise_for_status()
-                    async for line in response.aiter_lines():
-                        if not line.startswith("data: "):
-                            continue
-                        data = line[6:].strip()
-                        if data == "[DONE]":
-                            break
-                        try:
-                            delta = json.loads(data)["choices"][0]["delta"]
-                        except (json.JSONDecodeError, KeyError, IndexError):
-                            continue
-                        if content := delta.get("content"):
-                            yield content
+                ) as response,
+            ):
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[6:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        delta = json.loads(data)["choices"][0]["delta"]
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        continue
+                    if content := delta.get("content"):
+                        yield content
         except Exception as exc:
             self._breaker.record_failure()
             raise ExternalServiceError(f"Lỗi khi sinh câu trả lời: {type(exc).__name__}") from exc

@@ -11,6 +11,7 @@ from uuid import UUID
 from app.ai.embedding.openai_embedding import build_embedding_client
 from app.celery_app import celery_app
 from app.core.logging import get_logger
+
 # Nạp TOÀN BỘ model để SQLAlchemy phân giải được mọi quan hệ khoá ngoại.
 # Thiếu dòng này, script chỉ import một vài model sẽ lỗi
 # "could not find table 'users'" khi model đó có FK tới bảng khác.
