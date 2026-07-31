@@ -1,0 +1,118 @@
+"""Tính hạn SLA theo giờ hành chính — LỚP THUẦN, không I/O.
+
+★ Đây là chỗ dễ sai thứ hai của hệ thống. Ca kiểm thử quan trọng nhất:
+ticket URGENT (SLA 4 giờ làm việc) tạo lúc 17:00 thứ Sáu phải có hạn
+11:30 sáng THỨ HAI — không phải 21:00 thứ Sáu.
+
+Nếu PO xác nhận SLA tính 24/7 thay vì giờ hành chính, chỉ cần đặt
+business_hours_only=False và logic rút gọn còn một phép cộng.
+"""
+
+from dataclasses import dataclass, field
+from datetime import date, datetime, time, timedelta
+
+from app.modules.tickets.constants import SlaState
+
+AT_RISK_RATIO = 0.25  # còn <= 25% thời gian thì cảnh báo
+
+
+@dataclass
+class BusinessCalendar:
+    """Lịch làm việc. holidays là tập ngày nghỉ (không tính vào SLA)."""
+
+    start_hour: float = 8.5     # 8:30
+    end_hour: float = 17.5      # 17:30
+    workdays: frozenset[int] = frozenset({0, 1, 2, 3, 4})  # thứ 2 → thứ 6
+    holidays: frozenset[date] = field(default_factory=frozenset)
+
+    @property
+    def minutes_per_day(self) -> int:
+        return int((self.end_hour - self.start_hour) * 60)
+
+    def _to_time(self, hour_float: float) -> time:
+        return time(int(hour_float), int(round((hour_float % 1) * 60)))
+
+    @property
+    def start_time(self) -> time:
+        return self._to_time(self.start_hour)
+
+    @property
+    def end_time(self) -> time:
+        return self._to_time(self.end_hour)
+
+    def is_workday(self, d: date) -> bool:
+        return d.weekday() in self.workdays and d not in self.holidays
+
+    def next_workday_start(self, moment: datetime) -> datetime:
+        """Thời điểm bắt đầu làm việc kế tiếp kể từ moment."""
+        d = moment.date()
+        # Nếu hôm nay còn làm việc và chưa tới giờ mở cửa
+        if self.is_workday(d) and moment.time() < self.start_time:
+            return datetime.combine(d, self.start_time, tzinfo=moment.tzinfo)
+        # Ngược lại: tìm ngày làm việc tiếp theo
+        d += timedelta(days=1)
+        while not self.is_workday(d):
+            d += timedelta(days=1)
+        return datetime.combine(d, self.start_time, tzinfo=moment.tzinfo)
+
+
+class SlaCalculator:
+    """Tính hạn SLA. Nhận vào dữ liệu, trả ra kết quả — không chạm DB."""
+
+    def __init__(self, calendar: BusinessCalendar | None = None) -> None:
+        self.calendar = calendar or BusinessCalendar()
+
+    def due_at(
+        self, start: datetime, minutes: int, business_hours_only: bool = True
+    ) -> datetime:
+        """Cộng `minutes` phút LÀM VIỆC vào `start`, trả về hạn chót."""
+        if not business_hours_only:
+            return start + timedelta(minutes=minutes)
+
+        cal = self.calendar
+        cursor = start
+        remaining = minutes
+
+        # Nếu bắt đầu ngoài giờ làm việc, dời tới đầu giờ làm việc kế tiếp
+        if not cal.is_workday(cursor.date()) or cursor.time() >= cal.end_time:
+            cursor = cal.next_workday_start(cursor)
+        elif cursor.time() < cal.start_time:
+            cursor = datetime.combine(cursor.date(), cal.start_time, tzinfo=cursor.tzinfo)
+
+        while remaining > 0:
+            end_of_day = datetime.combine(cursor.date(), cal.end_time, tzinfo=cursor.tzinfo)
+            available = int((end_of_day - cursor).total_seconds() // 60)
+
+            if remaining <= available:
+                return cursor + timedelta(minutes=remaining)
+
+            remaining -= available
+            cursor = cal.next_workday_start(end_of_day)
+
+        return cursor
+
+    def state(
+        self,
+        *,
+        created_at: datetime,
+        due_at: datetime | None,
+        resolved_at: datetime | None,
+        now: datetime,
+        paused_seconds: int = 0,
+    ) -> SlaState:
+        """Trạng thái SLA để hiển thị. Thời gian chờ người dùng không tính vào."""
+        if due_at is None:
+            return SlaState.ON_TRACK
+
+        effective_due = due_at + timedelta(seconds=paused_seconds)
+
+        if resolved_at is not None:
+            return SlaState.MET if resolved_at <= effective_due else SlaState.BREACHED
+        if now > effective_due:
+            return SlaState.BREACHED
+
+        total = (effective_due - created_at).total_seconds()
+        left = (effective_due - now).total_seconds()
+        if total > 0 and left / total <= AT_RISK_RATIO:
+            return SlaState.AT_RISK
+        return SlaState.ON_TRACK
