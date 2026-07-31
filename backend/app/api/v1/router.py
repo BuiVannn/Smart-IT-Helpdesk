@@ -7,19 +7,18 @@ api_router.include_router(...) — không sửa gì khác.
 from fastapi import APIRouter
 
 from app.modules.auth.router import router as auth_router
+from app.modules.tickets.router import router as tickets_router
 from app.modules.users.router import router as users_router
 
 api_router = APIRouter()
 
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(users_router, prefix="/users", tags=["users"])
+api_router.include_router(tickets_router, prefix="/tickets", tags=["tickets"])
 
 # Các module còn lại đăng ký ở đây khi router của mình xong.
 # Mỗi người CHỈ thêm dòng của mình, không sửa dòng người khác — như vậy file
 # này gần như không bao giờ bị xung đột khi merge.
-#
-# from app.modules.tickets.router import router as tickets_router
-# api_router.include_router(tickets_router, prefix="/tickets", tags=["tickets"])
 #
 # from app.modules.knowledge.router import router as kb_router
 # api_router.include_router(kb_router, prefix="/kb", tags=["knowledge"])

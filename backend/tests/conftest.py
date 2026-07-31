@@ -144,6 +144,50 @@ def make_user(db) -> Callable[..., User]:
 
 
 @pytest.fixture
+def ticket_category(db):
+    """Loại sự cố dùng chung. Tái sử dụng bản ghi seed nếu đã có — `slug` là
+    UNIQUE nên chèn thêm sẽ vỡ ràng buộc."""
+    from app.modules.tickets.constants import TicketPriority
+    from app.modules.tickets.models import TicketCategory
+
+    category = db.execute(
+        select(TicketCategory).where(TicketCategory.slug == "network")
+    ).scalar_one_or_none()
+    if category is None:
+        category = TicketCategory(
+            slug="network", name="Mạng & Internet", default_priority=TicketPriority.HIGH
+        )
+        db.add(category)
+        db.flush()
+    return category
+
+
+@pytest.fixture
+def sla_policies(db):
+    """Bảo đảm có chính sách SLA, nếu không ticket sẽ không có hạn xử lý."""
+    from app.modules.tickets.constants import TicketPriority
+    from app.modules.tickets.models import SlaPolicy
+
+    defaults = {
+        TicketPriority.URGENT: (15, 240),
+        TicketPriority.HIGH: (60, 480),
+        TicketPriority.MEDIUM: (240, 1440),
+        TicketPriority.LOW: (480, 2400),
+    }
+    for priority, (first, resolution) in defaults.items():
+        exists = db.execute(
+            select(SlaPolicy).where(SlaPolicy.priority == priority)
+        ).scalar_one_or_none()
+        if exists is None:
+            db.add(SlaPolicy(
+                priority=priority,
+                first_response_minutes=first,
+                resolution_minutes=resolution,
+            ))
+    db.flush()
+
+
+@pytest.fixture
 def login(client) -> Callable[..., TestClient]:
     """Đăng nhập và gắn sẵn Authorization vào client. Trả về chính client đó."""
 
