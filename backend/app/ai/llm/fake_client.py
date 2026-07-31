@@ -50,8 +50,21 @@ class FakeLlmClient:
         self.responses = responses or {}
         self.should_fail = should_fail
         self.delay_seconds = delay_seconds
-        self.call_count = 0
         self.last_prompt: str = ""
+        # Đếm RIÊNG hai loại lời gọi. Test cần phân biệt được:
+        # - complete() dùng để phân loại và viết lại câu hỏi (rẻ, chấp nhận được)
+        # - stream()   dùng để SINH CÂU TRẢ LỜI — tuyệt đối không được gọi khi
+        #              không tìm thấy tài liệu liên quan (chống bịa đặt)
+        self.complete_count = 0
+        self.stream_count = 0
+
+    @property
+    def call_count(self) -> int:
+        return self.complete_count + self.stream_count
+
+    @property
+    def model_name(self) -> str:
+        return "fake-model"
 
     async def complete(
         self,
@@ -62,7 +75,7 @@ class FakeLlmClient:
         max_tokens: int = 1000,
         temperature: float = 0.0,
     ) -> LlmResponse:
-        self.call_count += 1
+        self.complete_count += 1
         self.last_prompt = f"{system}\n{user}"
         if self.delay_seconds:
             await asyncio.sleep(self.delay_seconds)
@@ -92,7 +105,7 @@ class FakeLlmClient:
     async def stream(
         self, *, system: str, user: str, max_tokens: int = 800
     ) -> AsyncIterator[str]:
-        self.call_count += 1
+        self.stream_count += 1
         self.last_prompt = f"{system}\n{user}"
         if self.should_fail:
             raise ConnectionError("FakeLlmClient được cấu hình để lỗi")
