@@ -1,0 +1,63 @@
+[project]
+name = "smart-it-helpdesk"
+version = "0.1.0"
+description = "Hệ thống hỗ trợ IT nội bộ tích hợp AI"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14",
+    "psycopg[binary]>=3.2",
+    "pgvector>=0.3",
+    "python-jose[cryptography]>=3.3",
+    "passlib[bcrypt]>=1.7",
+    "python-multipart>=0.0.12",
+    "redis>=5.2",
+    "celery>=5.4",
+    "boto3>=1.35",
+    "httpx>=0.27",
+    "uuid6>=2024.7",
+    "structlog>=24.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3", "pytest-asyncio>=0.24", "pytest-cov>=6.0",
+    "factory-boy>=3.3", "ruff>=0.8", "black>=24.10", "mypy>=1.13",
+    "import-linter>=2.1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = ["B008"]   # FastAPI Depends() trong default argument là đúng chuẩn
+
+[tool.black]
+line-length = 100
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+
+[tool.importlinter]
+root_package = "app"
+
+[[tool.importlinter.contracts]]
+name = "Kiến trúc phân tầng"
+type = "layers"
+layers = ["app.modules", "app.ai | app.storage", "app.db", "app.core"]
+
+[[tool.importlinter.contracts]]
+name = "Module độc lập không được import lẫn nhau"
+type = "independence"
+modules = ["app.modules.auth", "app.modules.knowledge", "app.modules.notifications"]
