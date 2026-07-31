@@ -5,28 +5,45 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.core.config import settings
 from app.core.exceptions import UnauthenticatedError
 
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=settings.BCRYPT_ROUNDS)
+# Dùng thư viện `bcrypt` TRỰC TIẾP thay vì passlib.
+# Lý do: passlib ngừng bảo trì từ 2020 và không tương thích bcrypt >= 4.1
+# (lỗi "password cannot be longer than 72 bytes" ngay khi khởi tạo).
+# Gọi thẳng bcrypt vừa ít phụ thuộc hơn, vừa không còn lớp trung gian nào để hỏng.
 
-# Hash giả dùng để so sánh khi email không tồn tại — giữ thời gian xử lý
-# tương đương với trường hợp sai mật khẩu, chống timing attack.
-_DUMMY_HASH = _pwd.hash("dummy-password-for-timing-attack-protection")
+# bcrypt chỉ dùng 72 byte đầu của mật khẩu. Mật khẩu dài hơn phải được cắt
+# TƯỜNG MINH — nếu không, bcrypt 4.x sẽ ném lỗi thay vì âm thầm cắt.
+BCRYPT_MAX_BYTES = 72
+
+
+def _prepare(plain: str) -> bytes:
+    return plain.encode("utf-8")[:BCRYPT_MAX_BYTES]
 
 
 def hash_password(plain: str) -> str:
-    return _pwd.hash(plain)
+    salt = bcrypt.gensalt(rounds=settings.BCRYPT_ROUNDS)
+    return bcrypt.hashpw(_prepare(plain), salt).decode("ascii")
+
+
+# Hash giả dùng khi email không tồn tại — giữ thời gian xử lý tương đương
+# với trường hợp sai mật khẩu, chống timing attack (xem US-02).
+_DUMMY_HASH = hash_password("dummy-password-for-timing-attack-protection")
 
 
 def verify_password(plain: str, hashed: str | None) -> bool:
     if hashed is None:
-        _pwd.verify(plain, _DUMMY_HASH)  # luôn tốn thời gian như thật
+        bcrypt.checkpw(_prepare(plain), _DUMMY_HASH.encode("ascii"))  # tốn thời gian như thật
         return False
-    return _pwd.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(_prepare(plain), hashed.encode("ascii"))
+    except ValueError:
+        # Hash trong DB sai định dạng — coi như xác thực thất bại, không nổ 500
+        return False
 
 
 def create_access_token(subject: str, role: str, extra: dict[str, Any] | None = None) -> str:

@@ -18,7 +18,7 @@ docs/Phan-Cong-Cong-Viec-*.docx
 __pycache__/
 *.py[cod]
 *.egg-info/
-.venv/
+.venv*/
 venv/
 .pytest_cache/
 .mypy_cache/
