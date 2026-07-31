@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import select  # noqa: E402
 
+from app.db import all_models  # noqa: E402,F401
 from app.db.session import session_scope  # noqa: E402
 from app.modules.knowledge.constants import ArticleStatus  # noqa: E402
 from app.modules.knowledge.models import KbArticle, KbCategory  # noqa: E402
