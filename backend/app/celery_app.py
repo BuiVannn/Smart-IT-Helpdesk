@@ -27,6 +27,11 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     task_default_queue="default",
+    # ★ Giới hạn thời gian chờ broker. Mặc định Celery chờ rất lâu rồi mới báo
+    # lỗi; khi Redis chết, một cú bấm "Xuất bản tài liệu" sẽ treo request HTTP
+    # hàng phút. Thà thất bại sau 2 giây và để job đối soát nhặt lại.
+    broker_transport_options={"socket_connect_timeout": 2, "socket_timeout": 2},
+    broker_connection_retry_on_startup=False,
     task_routes={
         "app.modules.tickets.tasks.*": {"queue": "ai"},
         "app.modules.knowledge.tasks.*": {"queue": "ai"},

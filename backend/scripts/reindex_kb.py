@@ -21,6 +21,7 @@ from sqlalchemy import select  # noqa: E402
 
 from app.ai.embedding.openai_embedding import build_embedding_client  # noqa: E402
 from app.core.config import settings  # noqa: E402
+
 # Nạp TOÀN BỘ model để SQLAlchemy phân giải được mọi quan hệ khoá ngoại.
 # Thiếu dòng này, script chỉ import một vài model sẽ lỗi
 # "could not find table 'users'" khi model đó có FK tới bảng khác.
@@ -33,7 +34,10 @@ from app.modules.knowledge.models import KbArticle  # noqa: E402
 async def run(mode: str, slug: str | None) -> int:
     with session_scope() as db:
         service = IndexingService(db, build_embedding_client())
-        print(f"Provider embedding: {settings.LLM_PROVIDER} · model: {service.embedding.model_name}")
+        print(
+            f"Provider embedding: {settings.LLM_PROVIDER} · "
+            f"model: {service.embedding.model_name}"
+        )
 
         if mode == "slug":
             article = db.execute(

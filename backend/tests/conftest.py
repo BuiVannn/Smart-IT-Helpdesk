@@ -104,6 +104,26 @@ def _reset_rate_limiters():
     yield
 
 
+@pytest.fixture(autouse=True)
+def _no_celery_broker(monkeypatch):
+    """Chặn MỌI lời gọi Celery ra broker trong test.
+
+    ★ Không có fixture này, mỗi test chạm tới `.delay()` sẽ cố kết nối Redis
+    ở địa chỉ `redis:6379` (tên máy chỉ phân giải được bên trong Docker) rồi
+    chờ hết thời gian. Đo được: bộ test kho tài liệu chạy 208 giây thay vì 20.
+
+    Patch ở lớp `Task` gốc nên mọi tác vụ MỚI của các thành viên khác cũng
+    được che sẵn, không ai phải nhớ thêm gì. Test nào cần kiểm tra "có xếp
+    hàng không" thì tự `monkeypatch.setattr` đè lên — fixture chạy trước nên
+    bản đè luôn thắng.
+    """
+    from celery.app.task import Task
+
+    monkeypatch.setattr(Task, "apply_async", lambda self, *a, **kw: None)
+    monkeypatch.setattr(Task, "delay", lambda self, *a, **kw: None)
+    yield
+
+
 @pytest.fixture
 def seeded_kb(db):
     """Bỏ qua test nếu kho tri thức chưa được index.
