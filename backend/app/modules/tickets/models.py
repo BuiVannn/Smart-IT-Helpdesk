@@ -264,6 +264,8 @@ class TicketEvent(Base, UUIDPrimaryKeyMixin):
     )
 
     ticket: Mapped[Ticket] = relationship(back_populates="events")
+    # actor có thể NULL: sự kiện do hệ thống hoặc AI sinh ra thì không có người
+    actor = relationship("User")
 
 
 class AiClassification(Base, UUIDPrimaryKeyMixin):
