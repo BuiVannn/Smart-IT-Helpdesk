@@ -58,8 +58,12 @@ Các lớp bắt buộc phải có độ phủ **≥ 90%**:
 
 ```python
 def test_sla_ticket_created_friday_evening():
-    """Ticket URGENT (SLA 4 giờ làm việc) tạo lúc 17:00 thứ Sáu
-    phải có hạn là 11:30 sáng thứ Hai, không phải 21:00 thứ Sáu."""
+    """Ticket URGENT (SLA 4 giờ làm việc) tạo lúc 17:00 thứ Sáu GIỜ VIỆT NAM
+    phải có hạn là 12:00 trưa thứ Hai, không phải 21:00 thứ Sáu.
+
+    Mốc đầu vào phải dựng theo giờ Việt Nam rồi quy về UTC. Dựng thẳng bằng
+    `tzinfo=UTC` rồi đọc như giờ làm việc là cách test và code cùng sai một
+    kiểu và che nhau — đã xảy ra một lần."""
 
 def test_state_machine_cannot_skip_from_new_to_resolved():
     """Không được nhảy thẳng NEW → RESOLVED, bỏ qua việc giao việc."""

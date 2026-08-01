@@ -86,8 +86,13 @@ class Settings(BaseSettings):
     AI_CLASSIFY_STALE_MINUTES: int = Field(default=10, gt=0)
 
     # SLA — giờ hành chính
+    #
+    # ★ `BUSINESS_TIMEZONE` là múi giờ của HAI mốc trên. Dấu thời gian trong
+    # database là UTC; thiếu tham số này thì 8:30–17:30 bị hiểu là giờ UTC,
+    # tức 15:30–00:30 giờ Việt Nam, và mọi hạn SLA lệch 7 tiếng.
     BUSINESS_HOUR_START: float = 8.5
     BUSINESS_HOUR_END: float = 17.5
+    BUSINESS_TIMEZONE: str = "Asia/Ho_Chi_Minh"
 
     # F6 — Thông báo (US-33 → US-36)
     # Cửa sổ chống lặp: cùng người nhận + cùng loại + cùng đối tượng trong

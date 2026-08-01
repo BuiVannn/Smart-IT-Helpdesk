@@ -289,6 +289,57 @@ class TestKhongGhiDePhanLoaiCuaNguoi:
         assert record.was_applied is False
         assert record.suggested_category_id == categories["network"].id
 
+    async def test_giu_nguyen_MUC_UU_TIEN_nguoi_dat_bang_tay(
+        self, db, make_ticket, categories, make_user
+    ):
+        """★ "Phân loại" gồm CẢ mức ưu tiên, không riêng loại sự cố.
+
+        Kịch bản thật đã tái hiện được: nhân viên tạo ticket không chọn loại;
+        trong lúc LLM còn đang chạy, Agent xem qua và tự đặt URGENT vì sự cố
+        gấp; AI trả về MEDIUM và GHI ĐÈ — hạ mức ưu tiên của con người xuống,
+        đồng thời nới hạn SLA thêm hai ngày. Nhật ký ghi đúng hai dòng liên
+        tiếp: `PRIORITY_CHANGED USER MEDIUM→URGENT` rồi `AI URGENT→MEDIUM`.
+
+        Bản trước chỉ kiểm `category_id is not None` nên nhánh này lọt.
+        """
+        from app.modules.tickets.constants import TicketPriority
+        from app.modules.tickets.schemas import UpdateTicketRequest
+        from app.modules.tickets.service import TicketService
+        from app.modules.users.constants import UserRole
+
+        # Agent THẬT trong database: `ticket_events.actor_id` có khoá ngoại
+        # sang `users`, nên fixture `agent` giả (không nằm trong DB) sẽ làm vỡ
+        # ràng buộc — và đó là ràng buộc đúng, nhật ký phải truy được ra người.
+        agent = make_user(role=UserRole.IT_AGENT)
+
+        ticket = make_ticket()  # không chọn loại ⇒ AI được phép phân loại
+        assert ticket.category_id is None
+
+        # Agent tự nâng mức ưu tiên trong lúc AI còn đang chạy
+        TicketService(db).update(
+            agent,
+            ticket.id,
+            UpdateTicketRequest(priority=TicketPriority.URGENT, version=ticket.version),
+        )
+        db.refresh(ticket)
+        assert ticket.priority == TicketPriority.URGENT
+        han_do_nguoi_dat = ticket.sla_resolution_due_at
+
+        llm = ScriptedLlm(
+            {
+                "category_slug": "network",
+                "priority": "MEDIUM",
+                "confidence": 0.95,
+                "reasoning": "AI cho rằng đây chỉ là sự cố mạng thường",
+            }
+        )
+        outcome = await build(db, llm).classify(ticket.id)
+
+        assert outcome.ai_status == AiStatus.SKIPPED
+        db.refresh(ticket)
+        assert ticket.priority == TicketPriority.URGENT, "AI đã ghi đè quyết định của con người"
+        assert ticket.sla_resolution_due_at == han_do_nguoi_dat, "hạn SLA bị nới ra"
+
 
 class TestDoTinCayThap:
     """Tầng 2 — BR-14."""

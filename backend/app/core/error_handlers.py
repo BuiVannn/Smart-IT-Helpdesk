@@ -7,6 +7,7 @@ MỌI lỗi đều có cùng một hình dạng — không có ngoại lệ:
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm.exc import StaleDataError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.exceptions import DomainError
@@ -48,6 +49,28 @@ def register_error_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=exc.status_code,
             content=_body(codes.get(exc.status_code, "BAD_REQUEST"), str(exc.detail)),
+        )
+
+    @app.exception_handler(StaleDataError)
+    async def _stale(_: Request, exc: StaleDataError) -> JSONResponse:
+        """Khoá lạc quan thua cuộc ⇒ 409, KHÔNG phải 500.
+
+        SQLAlchemy ném lỗi này khi câu UPDATE kèm `WHERE version = :cũ` không
+        khớp dòng nào — nghĩa là có người khác vừa sửa ticket trước ta vài mili
+        giây. Đây là kết cục BÌNH THƯỜNG của việc tranh chấp, không phải sự cố
+        hệ thống: người dùng cần được bảo "tải lại trang", còn nhóm vận hành
+        không cần bị đánh thức.
+
+        Không bắt được ở service vì lỗi chỉ nổ lúc flush/commit, tức sau khi
+        service đã trả về. Bắt ở đây là chỗ duy nhất bao được mọi đường ghi.
+        """
+        logger.info("xung đột khoá lạc quan", extra={"extra_fields": {"detail": str(exc)}})
+        return JSONResponse(
+            status_code=409,
+            content=_body(
+                "CONFLICT",
+                "Bản ghi đã được người khác cập nhật. Vui lòng tải lại và thử lại.",
+            ),
         )
 
     @app.exception_handler(Exception)

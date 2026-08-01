@@ -500,7 +500,10 @@ flowchart TD
 
 ### Quy tắc tính toán
 
-1. **Chỉ tính giờ hành chính**: 8:30–17:30, thứ Hai–thứ Sáu, trừ ngày lễ trong bảng `holidays`. Ticket tạo 17:00 thứ Sáu với SLA 4 giờ có hạn là 11:30 thứ Hai, **không phải** 21:00 thứ Sáu.
+1. **Chỉ tính giờ hành chính**: 8:30–17:30 **giờ Việt Nam** (`BUSINESS_TIMEZONE`), thứ Hai–thứ Sáu, trừ ngày lễ trong bảng `holidays`. Ticket tạo 17:00 thứ Sáu với SLA 4 giờ có hạn là **12:00 thứ Hai**, **không phải** 21:00 thứ Sáu.
+   > Sửa 01/08/2026: bản trước ghi 11:30, sai 30 phút. Phép tính đúng là 17:00→17:30 tiêu 30 phút của thứ Sáu, 210 phút còn lại tính từ 8:30 thứ Hai ⇒ **12:00**. Con số cũ đã được chép sang `10 §3` và vào docstring của `SlaCalculator`, nên sửa cả ba chỗ.
+   >
+   > Cũng ghi rõ **múi giờ**: mọi dấu thời gian trong database là UTC, còn 8:30–17:30 là giờ địa phương. Bản cài đặt đầu tiên so thẳng hai thứ đó nên giờ làm việc thực tế thành 15:30–00:30 giờ Việt Nam.
    > Nếu PO trả lời câu hỏi Q4 là "24/7" thì `SlaCalculator` chỉ cần cộng thẳng — logic đơn giản hơn nhiều. Đây là lý do phải hỏi PO sớm.
 2. **Thời gian ở trạng thái `PENDING_REQUESTER` không tính vào SLA giải quyết** (đang chờ người dùng, không phải lỗi Agent). Cài đặt: cộng dồn vào cột `paused_duration_seconds` mỗi lần rời khỏi trạng thái đó, và trừ ra khi đánh giá vi phạm.
 3. **Hạn SLA được lưu cứng vào ticket**, không tính lại từ policy mỗi lần đọc. Đổi policy chỉ ảnh hưởng ticket tạo mới.
