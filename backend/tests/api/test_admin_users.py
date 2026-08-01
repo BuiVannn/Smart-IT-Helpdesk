@@ -4,6 +4,8 @@ Story này là điều kiện để US-06 vận hành được: không có nó t
 phục vụ luôn ra EMPLOYEE và không đường nào tạo được IT_AGENT hay ADMIN.
 """
 
+from uuid import uuid4
+
 from sqlalchemy import select
 
 from app.modules.auth.models import RefreshToken
@@ -260,18 +262,28 @@ class TestTimKiemVaSapXep:
         đúng, và người sau sẽ "sửa" backend cho vừa với test.
 
         Tính chất đúng bất kể collation: đảo chiều phải cho ra đúng dãy ngược.
-        """
-        c = login(make_user(role=UserRole.ADMIN, full_name="Zz Quản Trị Kiểm Thử"))
 
-        tang_res = c.get("/api/v1/users?sortBy=fullName&sortDir=asc").json()
-        giam_res = c.get("/api/v1/users?sortBy=fullName&sortDir=desc").json()
-        if tang_res["pagination"]["totalItems"] > tang_res["pagination"]["pageSize"]:
-            return  # nhiều hơn một trang thì hai chiều không phải là dãy ngược của nhau
+        ★ Test TỰ DỰNG người dùng của mình rồi lọc theo một dấu riêng, thay vì
+        đọc cả bảng. Bản đầu tiên đọc cả bảng nên xanh trên máy (database dev
+        có 5 tài khoản seed) và ĐỎ trên CI (database trắng, chỉ có đúng tài
+        khoản do test tạo ⇒ dãy một phần tử, không đảo chiều được).
+
+        Lọc theo dấu riêng còn gỡ luôn cái bẫy thứ hai: nếu chỉ đếm rồi bỏ qua
+        khi quá một trang, thì trên database nhiều dữ liệu test sẽ im lặng
+        không khẳng định gì — xanh mà không kiểm gì cả.
+        """
+        dau_rieng = uuid4().hex[:10]
+        for ho_ten in (f"An {dau_rieng}", f"Binh {dau_rieng}", f"Cuong {dau_rieng}"):
+            make_user(full_name=ho_ten)
+        c = login(make_user(role=UserRole.ADMIN))
+
+        tang_res = c.get(f"/api/v1/users?q={dau_rieng}&sortBy=fullName&sortDir=asc").json()
+        giam_res = c.get(f"/api/v1/users?q={dau_rieng}&sortBy=fullName&sortDir=desc").json()
 
         tang = [u["fullName"] for u in tang_res["data"]]
         giam = [u["fullName"] for u in giam_res["data"]]
 
-        assert len(tang) >= 2
+        assert len(tang) == 3, "chỉ ba tài khoản của chính test này được lấy ra"
         assert giam == list(reversed(tang))
 
     def test_sortBy_la_ten_cot_LA_khong_lam_vo_truy_van(self, client, make_user, login):
