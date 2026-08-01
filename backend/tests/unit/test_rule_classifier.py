@@ -171,3 +171,21 @@ class TestFakeLlmKhongDinhVaoDanhSachCategory:
         result = FakeLlmClient()._classify(self._prompt(title, description))
 
         assert result["category_slug"] == expected
+
+    def test_bao_mat_thang_phan_mem_trong_fake_llm(self):
+        """"Phần mềm diệt virus báo phát hiện mã độc" khớp cả hai luật.
+
+        Luật khớp đầu tiên thắng, nên bảo mật phải đứng đầu bảng — nếu không,
+        một sự cố mã độc bị xếp vào `software` và đi sai hàng chờ.
+        """
+        from app.ai.llm.fake_client import FakeLlmClient
+
+        result = FakeLlmClient()._classify(
+            self._prompt(
+                "Máy tính liên tục cảnh báo nhiễm virus",
+                "Phần mềm diệt virus báo phát hiện mã độc, máy chạy rất chậm.",
+            )
+        )
+
+        assert result["category_slug"] == "security"
+        assert result["priority"] == "URGENT"

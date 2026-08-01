@@ -177,7 +177,9 @@ class AiAccuracyService:
         total = 0.0
         for model_name, prompt_tokens, completion_tokens in rows:
             in_price, out_price = PRICING.get(model_name, (0.5, 1.5))
-            total += (int(prompt_tokens) * in_price + int(completion_tokens) * out_price) / 1_000_000
+            total += (
+                int(prompt_tokens) * in_price + int(completion_tokens) * out_price
+            ) / 1_000_000
         report.estimated_cost_usd = round(total, 6)
 
     def _load_by_category(self, report: AiAccuracyReport) -> list[Bucket]:

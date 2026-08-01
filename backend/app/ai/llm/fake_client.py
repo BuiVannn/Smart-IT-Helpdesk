@@ -19,7 +19,16 @@ DEFAULT_CLASSIFICATION = {
     "reasoning": "Phản hồi mặc định từ FakeLlmClient",
 }
 
+# ★ THỨ TỰ CÓ Ý NGHĨA — luật đầu tiên khớp là thắng.
+#
+# Bảo mật phải đứng ĐẦU. Một ticket "phần mềm diệt virus báo phát hiện mã độc"
+# khớp cả "phần mềm" lẫn "virus"; để bảo mật ở cuối bảng thì sự cố mã độc bị
+# xếp vào `software` — đã gặp đúng tình huống này khi chạy thử. Cùng lý do với
+# cờ `dominant` ở RuleBasedClassifier: chậm một giờ với mã độc đắt hơn nhiều
+# so với gán nhầm một ticket phần mềm.
 KEYWORD_RULES: list[tuple[tuple[str, ...], dict[str, Any]]] = [
+    (("virus", "mã độc", "bảo mật", "lừa đảo", "phishing"),
+     {"category_slug": "security", "priority": "URGENT", "confidence": 0.95}),
     (("wifi", "mạng", "internet", "vpn", "kết nối"),
      {"category_slug": "network", "priority": "HIGH", "confidence": 0.92}),
     (("mật khẩu", "password", "đăng nhập", "tài khoản"),
@@ -28,8 +37,6 @@ KEYWORD_RULES: list[tuple[tuple[str, ...], dict[str, Any]]] = [
      {"category_slug": "hardware", "priority": "MEDIUM", "confidence": 0.85}),
     (("phần mềm", "cài đặt", "office", "excel"),
      {"category_slug": "software", "priority": "LOW", "confidence": 0.80}),
-    (("virus", "bảo mật", "lừa đảo", "phishing"),
-     {"category_slug": "security", "priority": "URGENT", "confidence": 0.95}),
 ]
 
 

@@ -31,7 +31,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.ai.llm.fake_client import FakeLlmClient  # noqa: E402
 from app.ai.llm.openai_client import build_llm_client  # noqa: E402
 from app.ai.resilience import RetryConfig  # noqa: E402
 from app.core.config import settings  # noqa: E402
@@ -110,13 +109,16 @@ async def run(cases: list[dict], rules_only: bool) -> list[dict]:
 
             expected_priority = TicketPriority(case["expect_priority"])
             got_priority = suggestion.priority if suggestion else None
+            category_ok = bool(
+                suggestion and suggestion.category_slug == case["expect_category"]
+            )
 
             results.append({
                 "id": case["id"],
                 "difficulty": case.get("difficulty", "clear"),
                 "expected_category": case["expect_category"],
                 "got_category": suggestion.category_slug if suggestion else None,
-                "category_ok": bool(suggestion and suggestion.category_slug == case["expect_category"]),
+                "category_ok": category_ok,
                 "expected_priority": expected_priority,
                 "got_priority": got_priority,
                 "priority_ok": got_priority == expected_priority,
@@ -137,7 +139,9 @@ def report(results: list[dict]) -> bool:
     total = len(results)
     category_ok = sum(r["category_ok"] for r in results)
     priority_exact = sum(r["priority_ok"] for r in results)
-    priority_near = sum(1 for r in results if r["priority_gap"] is not None and r["priority_gap"] <= 1)
+    priority_near = sum(
+        1 for r in results if r["priority_gap"] is not None and r["priority_gap"] <= 1
+    )
     latencies = sorted(r["seconds"] for r in results)
     p95 = latencies[min(int(len(latencies) * 0.95), len(latencies) - 1)]
 
@@ -163,8 +167,9 @@ def report(results: list[dict]) -> bool:
     # Nếu ca sai lại tự tin ngang ca đúng thì ngưỡng 0,6 không lọc được gì —
     # đây là chỉ số dễ bị bỏ qua nhất mà lại quyết định toàn bộ tầng
     # LOW_CONFIDENCE có tác dụng hay không.
-    right = [r["confidence"] for r in results if r["category_ok"] and r["confidence"] is not None]
-    wrong = [r["confidence"] for r in results if not r["category_ok"] and r["confidence"] is not None]
+    scored = [r for r in results if r["confidence"] is not None]
+    right = [r["confidence"] for r in scored if r["category_ok"]]
+    wrong = [r["confidence"] for r in scored if not r["category_ok"]]
     calibrated = True
     if right and wrong:
         mean_right, mean_wrong = statistics.mean(right), statistics.mean(wrong)
