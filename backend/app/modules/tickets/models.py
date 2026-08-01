@@ -19,6 +19,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    func,
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
@@ -186,7 +187,7 @@ class TicketComment(Base, UUIDPrimaryKeyMixin):
     is_internal: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
     ticket: Mapped[Ticket] = relationship(back_populates="comments")
@@ -222,7 +223,7 @@ class TicketAttachment(Base, UUIDPrimaryKeyMixin):
         PgUUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
     ticket: Mapped[Ticket] = relationship(back_populates="attachments")
@@ -260,7 +261,7 @@ class TicketEvent(Base, UUIDPrimaryKeyMixin):
         "metadata", JSONB, default=dict, nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
     ticket: Mapped[Ticket] = relationship(back_populates="events")
@@ -301,5 +302,12 @@ class AiClassification(Base, UUIDPrimaryKeyMixin):
     completion_tokens: Mapped[int | None] = mapped_column(Integer)
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    # `foreign_keys` là BẮT BUỘC: bảng này có hai khoá ngoại trỏ cùng tới
+    # ticket_categories (loại AI gợi ý và loại người sửa lại), nên SQLAlchemy
+    # không tự đoán được quan hệ nào đi theo cột nào.
+    suggested_category: Mapped[TicketCategory | None] = relationship(
+        foreign_keys=[suggested_category_id]
     )

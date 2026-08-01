@@ -4,6 +4,8 @@ import { Button, EmptyState, ErrorState, LoadingBlock } from '@/components/ui'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { formatDateTime } from '@/lib/utils'
 import { AiStatusHint, PriorityBadge, SlaBadge, StatusBadge } from './badges'
+import { AiSuggestionPanel } from './AiSuggestionPanel'
+import { AssigneeSuggestionPanel } from './AssigneeSuggestionPanel'
 import { CommentThread } from './CommentThread'
 import { StatusActions } from './StatusActions'
 import { Timeline } from './Timeline'
@@ -46,6 +48,7 @@ export function TicketDetailPage() {
   }
 
   const ticket = query.data!
+  const isAgent = user?.role === 'IT_AGENT' || user?.role === 'ADMIN'
 
   return (
     <div>
@@ -89,6 +92,11 @@ export function TicketDetailPage() {
 
         <div className="space-y-5">
           {user && <StatusActions ticket={ticket} role={user.role} />}
+
+          {/* Chi tiết phân loại của AI chỉ dành cho người xử lý — người gửi
+              yêu cầu đã có nhãn tóm tắt ở đầu trang. */}
+          {isAgent && <AiSuggestionPanel ticket={ticket} />}
+          {user && <AssigneeSuggestionPanel ticket={ticket} role={user.role} />}
 
           <section className="rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="mb-1 text-sm font-medium text-slate-700">Thông tin</h2>

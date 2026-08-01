@@ -27,11 +27,22 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     task_default_queue="default",
-    # ★ Giới hạn thời gian chờ broker. Mặc định Celery chờ rất lâu rồi mới báo
-    # lỗi; khi Redis chết, một cú bấm "Xuất bản tài liệu" sẽ treo request HTTP
-    # hàng phút. Thà thất bại sau 2 giây và để job đối soát nhặt lại.
+    # Giới hạn thời gian chờ broker. WORKER cố tình KHÔNG giới hạn số lần thử
+    # lại ở đây: worker phải tự kết nối lại vô hạn sau khi Redis restart.
+    # Đường ĐẨY VIỆC dùng kết nối riêng, xem `publish_connection()` bên dưới.
     broker_transport_options={"socket_connect_timeout": 2, "socket_timeout": 2},
     broker_connection_retry_on_startup=False,
+    # ★ KHÔNG thử lại khi đẩy việc — đặt toàn cục vì tám thành viên khác sẽ
+    # viết `.delay()` theo phản xạ và không ai nhớ truyền `retry=False`.
+    task_publish_retry=False,
+    # ★ KHÔNG lưu kết quả tác vụ. Đây là bản vá cho một sự cố đo được, không
+    # phải tối ưu suy đoán: backend Redis mở một pub/sub "ResultConsumer" ngay
+    # trong `apply_async`, và khi backend không kết nối được thì riêng bước đó
+    # ngốn **19,2 giây** trước khi chịu báo lỗi — trong khi broker vẫn sống
+    # nguyên. Không chỗ nào trong dự án đọc kết quả tác vụ (không ai gọi
+    # `.get()`), nên bỏ hẳn kết quả vừa gỡ được điểm treo vừa đỡ tốn Redis.
+    # Kết quả tác vụ vẫn xuất hiện đầy đủ trong log của worker.
+    task_ignore_result=True,
     task_routes={
         "app.modules.tickets.tasks.*": {"queue": "ai"},
         "app.modules.knowledge.tasks.*": {"queue": "ai"},
@@ -68,3 +79,33 @@ celery_app.autodiscover_tasks(
      "app.modules.auth"],
     related_name="tasks",
 )
+
+
+def publish_connection():
+    """Kết nối CHỈ dùng để đẩy việc từ trong một request HTTP — thất bại ngay.
+
+    ★ VÌ SAO PHẢI TÁCH RIÊNG, ĐỪNG GỘP VÀO `broker_transport_options`:
+    kombu tự thử lại việc mở kết nối theo lịch nghỉ 0s → 2s → 4s. Đo thực tế
+    khi Redis chết, một cú `POST /tickets` mất **6,1 giây** chỉ để chờ ba lần
+    thử đó — và con số này KHÔNG đổi theo `socket_connect_timeout`, nên rất
+    dễ chỉnh sai chỗ. `max_retries=0` gỡ được, xuống còn 0,09 giây.
+
+    Nhưng đặt `max_retries=0` vào cấu hình toàn cục thì WORKER dùng chung, và
+    worker sẽ CHẾT HẲN ngay lần đầu Redis chớp tắt thay vì kết nối lại — đã
+    kiểm chứng bằng `docker restart redis`: worker thoát với
+    `kombu.exceptions.OperationalError`. Hai bên cần hai chính sách ngược
+    nhau: người đẩy việc bỏ cuộc ngay, worker kiên trì mãi.
+
+    Việc bị rơi sẽ được job đối soát nhặt lại trong 10 phút (ADR-0007).
+
+    Dùng:
+        with publish_connection() as conn:
+            my_task.apply_async(args=[...], retry=False, connection=conn)
+    """
+    return celery_app.connection_for_write(
+        transport_options={
+            "socket_connect_timeout": 2,
+            "socket_timeout": 2,
+            "max_retries": 0,
+        }
+    )

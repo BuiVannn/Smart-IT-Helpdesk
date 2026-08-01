@@ -2,7 +2,6 @@
 
 ★ CÒN TRỐNG, THUỘC VỀ NGƯỜI KHÁC — đừng viết chồng lên:
 - `POST/GET /tickets/{id}/attachments` (US-09) — cần module storage/MinIO
-- `GET  /tickets/{id}/assignee-suggestions` (US-20) — Lại Duy Đông
 - `POST /tickets/{id}/rating` (US-41) — Nguyễn Tiến Lưỡng
 """
 
@@ -18,8 +17,12 @@ from app.db.session import get_db
 from app.modules.tickets.constants import TicketPriority, TicketStatus
 from app.modules.tickets.models import Ticket
 from app.modules.tickets.schemas import (
+    AiClassificationResponse,
     AllowedTransitionsResponse,
+    AssigneeSuggestion,
+    AssigneeSuggestionsResponse,
     AssignRequest,
+    CategoryBrief,
     ChangeStatusRequest,
     ClaimRequest,
     CommentResponse,
@@ -238,3 +241,42 @@ def list_events(
     service: TicketService = Depends(get_ticket_service),
 ) -> list[EventResponse]:
     return service.list_events(current_user, ticket_id)
+
+
+@router.get(
+    "/{ticket_id}/ai-classification",
+    response_model=AiClassificationResponse | None,
+    summary="Gợi ý phân loại gần nhất của AI (US-19)",
+)
+def ai_classification(
+    ticket_id: UUID,
+    current_user: User = Depends(get_current_user),
+    service: TicketService = Depends(get_ticket_service),
+) -> AiClassificationResponse | None:
+    """Trả `null` khi AI chưa chạy xong — giao diện hiển thị "Đang phân loại…".
+
+    Tách khỏi `GET /tickets/{id}` có chủ ý: mọi lần mở danh sách hay chi tiết
+    ticket sẽ phải gánh thêm một truy vấn cho dữ liệu mà chỉ Agent mới nhìn.
+    """
+    record = service.latest_ai_classification(current_user, ticket_id)
+    return AiClassificationResponse.model_validate(record) if record else None
+
+
+@router.get(
+    "/{ticket_id}/assignee-suggestions",
+    response_model=AssigneeSuggestionsResponse,
+    summary="Top 3 gợi ý người xử lý theo chuyên môn và tải (US-20)",
+)
+def assignee_suggestions(
+    ticket_id: UUID,
+    current_user: User = Depends(get_current_user),
+    service: TicketService = Depends(get_ticket_service),
+) -> AssigneeSuggestionsResponse:
+    """CHỈ GỢI Ý — không tự giao. Agent trưởng vẫn phải bấm "Giao việc"."""
+    now = datetime.now(UTC)
+    ticket, suggestions = service.assignee_suggestions(current_user, ticket_id, now=now)
+    return AssigneeSuggestionsResponse(
+        category=CategoryBrief.model_validate(ticket.category) if ticket.category else None,
+        suggestions=[AssigneeSuggestion.model_validate(s) for s in suggestions],
+        generated_at=now,
+    )

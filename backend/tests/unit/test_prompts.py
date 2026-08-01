@@ -200,6 +200,22 @@ class TestEvalFixtures:
             .read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
-        assert len(rows) == 10
+        # Ngưỡng TỐI THIỂU theo docs/design/07 §5.1, không phải con số cố định:
+        # ghim `== 10` khiến chính bộ test chặn việc bổ sung ca mới, mà bổ
+        # sung ca mới là cách duy nhất để tập đánh giá theo kịp thực tế.
+        assert len(rows) >= 50, "Tập đánh giá cần ít nhất 50 ca (docs/design/07 §5.1)"
+
         difficulties = {r["difficulty"] for r in rows}
         assert difficulties == {"clear", "ambiguous", "tricky"}
+
+        ids = [r["id"] for r in rows]
+        assert len(ids) == len(set(ids)), "Có ID trùng nhau trong tập đánh giá"
+
+        # Ca mơ hồ và ca lắt léo mới là thứ phân biệt được mô hình tốt với mô
+        # hình chỉ học thuộc từ khoá. Tập chỉ toàn ca rõ ràng luôn cho điểm đẹp.
+        assert sum(1 for r in rows if r["difficulty"] == "ambiguous") >= 10
+        assert sum(1 for r in rows if r["difficulty"] == "tricky") >= 5
+
+        valid = {"network", "hardware", "software", "account",
+                 "access", "email", "security", "other"}
+        assert {r["expect_category"] for r in rows} <= valid

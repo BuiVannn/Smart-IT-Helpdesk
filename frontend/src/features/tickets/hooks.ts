@@ -24,7 +24,12 @@ export const ticketKeys = {
   events: (id: string) => [...ticketKeys.detail(id), 'events'] as const,
   transitions: (id: string) => [...ticketKeys.detail(id), 'transitions'] as const,
   queueStats: () => [...ticketKeys.all, 'queue-stats'] as const,
+  aiClassification: (id: string) => [...ticketKeys.detail(id), 'ai'] as const,
+  assigneeSuggestions: (id: string) => [...ticketKeys.detail(id), 'suggestions'] as const,
 }
+
+/** Nhịp hỏi lại khi AI còn đang phân loại (US-19: mục tiêu ≤ 30 giây). */
+const AI_POLL_MS = 3_000
 
 export function useTickets(params: TicketListParams) {
   return useQuery({
@@ -40,6 +45,13 @@ export function useTicket(id: string | undefined) {
     queryKey: ticketKeys.detail(id!),
     queryFn: () => ticketsApi.get(id!),
     enabled: Boolean(id),
+    // ★ Việc phân loại chạy ở worker, KHÔNG nằm trong response của
+    // `POST /tickets`. Không hỏi lại thì người vừa gửi yêu cầu nhìn thấy
+    // "Đang phân loại…" đứng im cho tới khi họ tự bấm F5 — trông y hệt một
+    // tính năng hỏng. Ngừng hỏi ngay khi AI đã chốt, để không có trang nào
+    // gọi API mỗi 3 giây suốt cả ngày.
+    refetchInterval: (query) =>
+      query.state.data?.aiStatus === 'PENDING' ? AI_POLL_MS : false,
   })
 }
 
@@ -73,6 +85,63 @@ export function useQueueStats(enabled: boolean) {
     queryFn: () => ticketsApi.queueStats(),
     enabled,
     refetchInterval: 60_000,
+  })
+}
+
+// ─────────────── F3 — AI phân loại & gợi ý người xử lý ───────────────
+
+/** Gợi ý phân loại của AI (US-19). Chỉ gọi khi người xem là Agent/Admin. */
+export function useAiClassification(id: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ticketKeys.aiClassification(id!),
+    queryFn: () => ticketsApi.aiClassification(id!),
+    enabled: Boolean(id) && enabled,
+    refetchInterval: (query) => (query.state.data === null ? AI_POLL_MS : false),
+  })
+}
+
+/**
+ * Top 3 người xử lý phù hợp (US-20).
+ *
+ * Chỉ gọi khi người dùng thật sự sắp giao việc — endpoint này quét tải của
+ * toàn đội IT, không nên chạy mỗi lần ai đó mở một ticket.
+ */
+export function useAssigneeSuggestions(id: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ticketKeys.assigneeSuggestions(id!),
+    queryFn: () => ticketsApi.assigneeSuggestions(id!),
+    enabled: Boolean(id) && enabled,
+    // Tải của Agent đổi liên tục; số liệu quá cũ dẫn tới giao sai người.
+    staleTime: 30_000,
+  })
+}
+
+export function useAssignTicket(id: string) {
+  const invalidate = useInvalidateTicket()
+  return useMutation({
+    mutationFn: (input: { assigneeId: string; version: number }) =>
+      ticketsApi.assign(id, input.assigneeId, input.version),
+    onSuccess: () => invalidate(id),
+  })
+}
+
+/**
+ * Agent sửa lại loại sự cố AI đã gán (US-21).
+ *
+ * Bắt buộc invalidate cả `aiClassification`: backend vừa đánh dấu bản ghi đó
+ * là `wasAccepted = false`, mà khối "AI đã gợi ý" trên màn hình đang hiển thị
+ * chính giá trị ấy.
+ */
+export function useReclassify(id: string) {
+  const queryClient = useQueryClient()
+  const invalidate = useInvalidateTicket()
+  return useMutation({
+    mutationFn: (input: { categoryId: string; version: number }) =>
+      ticketsApi.reclassify(id, input.categoryId, input.version),
+    onSuccess: () => {
+      invalidate(id)
+      void queryClient.invalidateQueries({ queryKey: ticketKeys.aiClassification(id) })
+    },
   })
 }
 

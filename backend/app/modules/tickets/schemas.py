@@ -7,7 +7,7 @@ nhau thì người dùng nhận 500 từ database thay vì 422 có thông báo r
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from app.core.schemas import ResponseModel, StrictModel
 from app.modules.tickets.constants import (
@@ -146,3 +146,58 @@ class QueueStatsResponse(ResponseModel):
     in_progress: int = Field(serialization_alias="inProgress")
     at_risk: int = Field(serialization_alias="atRisk")
     breached: int
+
+
+# ─────────────── F3 — AI phân loại & gợi ý người xử lý ───────────────
+
+class AiClassificationResponse(ResponseModel):
+    """Gợi ý gần nhất của AI cho một ticket (US-19, US-21).
+
+    Trả cả khi AI KHÔNG áp dụng: Agent cần nhìn thấy "AI nghĩ là Mạng nhưng
+    chỉ chắc 45%" để quyết định nhanh, đó chính là giá trị của tầng
+    LOW_CONFIDENCE. Giấu đi thì độ tin cậy thấp thành ra vô dụng.
+    """
+
+    # `model_name` va vào không gian tên `model_` mà Pydantic giữ riêng.
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True,
+                              protected_namespaces=())
+
+    id: UUID
+    suggested_category: CategoryBrief | None = Field(
+        default=None, serialization_alias="suggestedCategory"
+    )
+    suggested_priority: TicketPriority | None = Field(
+        default=None, serialization_alias="suggestedPriority"
+    )
+    confidence: float | None = None
+    reasoning: str | None = None
+    was_applied: bool = Field(serialization_alias="wasApplied")
+    was_accepted: bool | None = Field(default=None, serialization_alias="wasAccepted")
+    model_name: str = Field(serialization_alias="modelName")
+    prompt_version: str = Field(serialization_alias="promptVersion")
+    latency_ms: int | None = Field(default=None, serialization_alias="latencyMs")
+    error_message: str | None = Field(default=None, serialization_alias="errorMessage")
+    created_at: datetime = Field(serialization_alias="createdAt")
+
+
+class AssigneeSuggestion(ResponseModel):
+    """Một ứng viên trong danh sách gợi ý (US-20).
+
+    Cố tình KHÔNG có email — cùng lý do với `UserBrief`. `reason` mới là thứ
+    Agent trưởng đọc; `score` chỉ để giải thích thứ tự.
+    """
+
+    agent_id: UUID = Field(serialization_alias="agentId")
+    full_name: str = Field(serialization_alias="fullName")
+    score: float
+    skill_level: int = Field(serialization_alias="skillLevel")
+    open_tickets: int = Field(serialization_alias="openTickets")
+    weighted_load: int = Field(serialization_alias="weightedLoad")
+    on_duty: bool = Field(serialization_alias="onDuty")
+    reason: str
+
+
+class AssigneeSuggestionsResponse(ResponseModel):
+    category: CategoryBrief | None = None
+    suggestions: list[AssigneeSuggestion]
+    generated_at: datetime = Field(serialization_alias="generatedAt")

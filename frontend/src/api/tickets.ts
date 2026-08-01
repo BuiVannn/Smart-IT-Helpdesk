@@ -8,7 +8,9 @@
 
 import { api } from '@/api/client'
 import type {
+  AiClassification,
   AllowedTransitions,
+  AssigneeSuggestions,
   CreateTicketInput,
   Page,
   QueueStats,
@@ -75,4 +77,16 @@ export const ticketsApi = {
     api.post<TicketComment>(`/tickets/${id}/comments`, { body, isInternal }),
 
   events: (id: string) => api.get<TicketEvent[]>(`/tickets/${id}/events`),
+
+  // ─── F3 ───
+  // `AiClassification | null`: backend trả `null` khi AI chưa chạy xong. Đây
+  // là trạng thái BÌNH THƯỜNG (worker chạy bất đồng bộ), không phải lỗi.
+  aiClassification: (id: string) =>
+    api.get<AiClassification | null>(`/tickets/${id}/ai-classification`),
+
+  assigneeSuggestions: (id: string) =>
+    api.get<AssigneeSuggestions>(`/tickets/${id}/assignee-suggestions`),
+
+  reclassify: (id: string, categoryId: string, version: number) =>
+    api.patch<Ticket>(`/tickets/${id}`, { categoryId, version }),
 }
