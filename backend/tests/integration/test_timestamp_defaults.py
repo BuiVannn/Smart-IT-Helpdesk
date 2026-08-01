@@ -47,7 +47,7 @@ def test_khong_cot_nao_co_gia_tri_mac_dinh_la_hang_thoi_gian(db):
     assert rows == [], (
         "Các cột sau có giá trị mặc định là một mốc thời gian cố định thay vì "
         "now(). Dùng sa.text('now()') hoặc func.now(), đừng dùng chuỗi thường "
-        f"'now()':\n" + "\n".join(f"  {t}.{c} = {d}" for t, c, d in rows)
+        "'now()':\n" + "\n".join(f"  {t}.{c} = {d}" for t, c, d in rows)
     )
 
 
