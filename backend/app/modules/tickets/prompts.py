@@ -131,4 +131,14 @@ def build_classify_prompt(
 # | Phiên bản     | Ngày       | Độ chính xác category | Ghi chú              |
 # |---------------|------------|-----------------------|----------------------|
 # | classify-v1.0 | 2026-07-31 | (chưa đo)             | Bản đầu tiên         |
+# | rules-v1.0    | 2026-08-01 | 74% (50 ca)           | Đường dự phòng, đo bằng
+# |               |            | priority ±1: 84%      | --rules-only. CHƯA đo
+# |               |            |                       | prompt thật: cần API key.
+# ─────────────────────────────────────────────────────────────────────
+#
+# ★ CHƯA CÓ SỐ CHO `classify-v1.0`. Số ở trên là của đường dự phòng đối chiếu
+# từ khoá, KHÔNG phải của prompt này. Muốn đo prompt thật:
+#     LLM_PROVIDER=openai LLM_API_KEY=sk-... python scripts/eval_classification.py
+# Chạy với LLM_PROVIDER=fake chỉ đo FakeLlmClient và không nói lên điều gì về
+# chất lượng prompt.
 # ─────────────────────────────────────────────────────────────────────

@@ -218,9 +218,16 @@ class KbArticleService:
         nhặt lại là hành vi đúng.
         """
         try:
+            from app.celery_app import publish_connection
             from app.modules.knowledge.tasks import index_article
 
-            index_article.apply_async(args=[str(article.id)], retry=False)
+            # `retry=False` một mình chưa đủ: kombu vẫn thử MỞ KẾT NỐI ba lần
+            # (0s → 2s → 4s) trước khi báo lỗi, tức là vẫn treo 6 giây khi
+            # Redis chết. Xem `publish_connection()` trong app/celery_app.py.
+            with publish_connection() as connection:
+                index_article.apply_async(
+                    args=[str(article.id)], retry=False, connection=connection
+                )
             logger.info("đã xếp hàng index", extra={"extra_fields": {
                 "slug": article.slug, "reason": reason
             }})

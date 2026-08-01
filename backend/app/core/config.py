@@ -70,6 +70,21 @@ class Settings(BaseSettings):
     LLM_TIMEOUT_CHAT: int = 30
     LLM_TIMEOUT_EMBED: int = 5
 
+    # F3 — Gợi ý người xử lý (US-20). Trọng số nằm ở đây chứ không nằm trong
+    # code: hiệu chỉnh phân bổ công việc là việc của vận hành, không phải của
+    # một lần deploy. Tổng ba trọng số nên bằng 1 để điểm nằm trong [0, 1].
+    SUGGEST_WEIGHT_SKILL: float = Field(default=0.5, ge=0, le=1)
+    SUGGEST_WEIGHT_LOAD: float = Field(default=0.35, ge=0, le=1)
+    SUGGEST_WEIGHT_DUTY: float = Field(default=0.15, ge=0, le=1)
+    # Tải quy đổi (URGENT=4, HIGH=3, MEDIUM=2, LOW=1) bị coi là đầy ở mức này.
+    SUGGEST_MAX_LOAD: int = Field(default=20, gt=0)
+    SUGGEST_TOP_N: int = Field(default=3, gt=0, le=10)
+    SUGGEST_DUTY_HOURS: int = Field(default=12, gt=0)
+
+    # Ticket ở PENDING quá lâu nghĩa là việc phân loại đã rơi mất trên đường
+    # ra hàng đợi — job đối soát sẽ nhặt lại (xem tickets/tasks.py).
+    AI_CLASSIFY_STALE_MINUTES: int = Field(default=10, gt=0)
+
     # SLA — giờ hành chính
     BUSINESS_HOUR_START: float = 8.5
     BUSINESS_HOUR_END: float = 17.5

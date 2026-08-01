@@ -13,11 +13,11 @@ trong service — bản thật sự chạy — là bản không ai test.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import select, update
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.exceptions import (
     ConflictError,
@@ -30,6 +30,7 @@ from app.core.logging import get_logger
 from app.core.pagination import PageParams
 from app.modules.tickets.constants import (
     ActorType,
+    AiStatus,
     EventType,
     SlaState,
     TicketPriority,
@@ -37,6 +38,7 @@ from app.modules.tickets.constants import (
     TicketStatus,
 )
 from app.modules.tickets.models import (
+    AiClassification,
     SlaPolicy,
     Ticket,
     TicketComment,
@@ -55,6 +57,7 @@ from app.modules.tickets.schemas import (
 )
 from app.modules.tickets.sla import BusinessCalendar, SlaCalculator
 from app.modules.tickets.state_machine import TicketStateMachine
+from app.modules.tickets.suggestions import AssigneeSuggestionService, ScoredAgent
 from app.modules.users.constants import UserRole
 from app.modules.users.models import Holiday, User
 
@@ -92,15 +95,45 @@ class TicketService:
         self._record(ticket, user, EventType.CREATED, new_value=ticket.code)
         self.db.commit()
 
-        # ★ ĐIỂM MÓC CHO AI PHÂN LOẠI (US-19) — người làm F3 chỉ cần thêm:
-        #     from app.modules.tickets.tasks import classify_ticket
-        #     classify_ticket.delay(str(ticket.id))
-        # Gọi BẤT ĐỒNG BỘ và chỉ sau khi commit. Gọi đồng bộ thì mỗi lần tạo
-        # ticket phải chờ LLM 5–20 giây, và LLM hỏng là không tạo được ticket.
+        self._enqueue_classification(ticket)
+
         logger.info("tạo ticket", extra={"extra_fields": {
             "ticket_id": str(ticket.id), "code": ticket.code, "priority": priority
         }})
         return self._load(user, ticket.id)
+
+    def _enqueue_classification(self, ticket: Ticket) -> None:
+        """Đẩy việc phân loại sang worker (US-19) — BẤT ĐỒNG BỘ, SAU khi commit.
+
+        Gọi LLM đồng bộ ngay tại đây thì mỗi lần tạo ticket phải chờ 5–20 giây
+        (vi phạm NFR p95 < 500 ms), và LLM hỏng sẽ thành "không tạo được
+        ticket" — đúng lúc cần hệ thống nhất thì nó lại chết.
+
+        ★ try/except bao trọn là BẮT BUỘC, không phải phòng thủ thừa: Redis
+        chết mà việc tạo ticket cũng chết theo là vi phạm BR-15. Việc bị rơi
+        sẽ được `reconcile_pending` nhặt lại trong 10 phút — lưới an toàn thay
+        cho transactional outbox (ADR-0007).
+
+        ★ `publish_connection()` + `retry=False` cũng BẮT BUỘC. Đo thực tế
+        với Redis không kết nối được, `POST /tickets` mất **19,3 giây** — ticket
+        vẫn tạo được nhưng NFR p95 < 500 ms thì tan tành. Xem chú thích ở
+        `app/celery_app.py` về hai điểm treo tách biệt đã tìm ra.
+
+        Import cục bộ để tránh vòng lặp import: tasks → classifier → service.
+        """
+        try:
+            from app.celery_app import publish_connection
+            from app.modules.tickets.tasks import classify_ticket
+
+            with publish_connection() as connection:
+                classify_ticket.apply_async(
+                    args=[str(ticket.id)], retry=False, connection=connection
+                )
+        except Exception as exc:
+            logger.warning(
+                f"không xếp hàng được việc phân loại, để job đối soát nhặt lại: {exc}",
+                extra={"extra_fields": {"ticket_id": str(ticket.id)}},
+            )
 
     # ── US-10, US-12, US-16: Danh sách, hàng chờ, tìm kiếm ────────────
 
@@ -172,6 +205,7 @@ class TicketService:
                 new_value=str(data.category_id),
             )
             ticket.category_id = data.category_id
+            self._record_ai_correction(ticket, data.category_id)
             changed = True
         if data.priority is not None and data.priority != ticket.priority:
             self._record(
@@ -301,6 +335,7 @@ class TicketService:
         if data.status == TicketStatus.RESOLVED:
             ticket.resolved_at = now
         elif data.status == TicketStatus.CLOSED:
+            self._settle_ai_accuracy(ticket)
             ticket.closed_at = now
             # RESOLVED → CLOSED có thể do người dùng bấm ngay; nếu chưa từng
             # qua RESOLVED thì resolved_at vẫn phải có, do CHECK constraint.
@@ -374,6 +409,204 @@ class TicketService:
         self._load(user, ticket_id)
         return self.events.list_for_ticket(ticket_id)
 
+    # ── US-19: AI phân loại ghi vào ticket ────────────────────────────
+    #
+    # Hai phương thức dưới đây là ĐƯỜNG DUY NHẤT để AI chạm vào bảng tickets.
+    # Chúng nằm ở đây chứ không nằm trong TicketClassifier vì mọi thay đổi
+    # vòng đời ticket đều phải đi qua một chỗ — nếu không, quy tắc SLA và
+    # nhật ký sự kiện sẽ có hai bản, và bản AI dùng là bản không ai test.
+
+    def apply_ai_classification(
+        self,
+        ticket_id: UUID,
+        *,
+        category_id: UUID,
+        priority: TicketPriority,
+        reasoning: str,
+        confidence: float,
+    ) -> AiStatus:
+        """Ghi kết quả phân loại của AI vào ticket. Trả về trạng thái đã chốt.
+
+        ★ KHOÁ DÒNG (`with_for_update`) trước khi kiểm tra điều kiện. Giữa lúc
+        gọi LLM (5–20 giây) và lúc ghi, Agent hoàn toàn có thể đã tự phân loại
+        ticket. Đọc-rồi-ghi mà không khoá ở đây chính là ghi đè im lặng lên
+        quyết định của con người — thứ mà BR-13 cấm.
+        """
+        ticket = self.db.get(
+            Ticket, ticket_id, with_for_update=True, populate_existing=True
+        )
+        if ticket is None:
+            return AiStatus.FAILED
+
+        # Lượt phân loại khác đã chốt rồi — không đụng vào kết quả của nó.
+        if ticket.ai_status != AiStatus.PENDING:
+            return ticket.ai_status
+
+        # BR-13 — AI KHÔNG BAO GIỜ ghi đè phân loại do con người chọn. Vẫn ghi
+        # nhận gợi ý (bản ghi ai_classifications) để US-22 so sánh AI với người.
+        if ticket.category_id is not None:
+            ticket.ai_status = AiStatus.SKIPPED
+            self.db.flush()
+            return AiStatus.SKIPPED
+
+        old_priority = ticket.priority
+        ticket.category_id = category_id
+        ticket.priority = priority
+        ticket.ai_status = AiStatus.APPLIED
+        # Hạn SLA tính lại theo mức ưu tiên MỚI nhưng vẫn từ lúc TẠO ticket —
+        # tính từ bây giờ là tự gia hạn cho mình mấy giây AI vừa tiêu tốn.
+        self._apply_sla(ticket)
+        self._bump(ticket)
+
+        self._record(
+            ticket, None, EventType.AI_CLASSIFIED,
+            actor_type=ActorType.AI,
+            field_name="category_id",
+            new_value=str(category_id),
+            event_metadata={
+                "confidence": round(confidence, 4),
+                "reasoning": reasoning,
+                "priority": str(priority),
+            },
+        )
+        if old_priority != priority:
+            self._record(
+                ticket, None, EventType.PRIORITY_CHANGED,
+                actor_type=ActorType.AI,
+                field_name="priority", old_value=old_priority, new_value=priority,
+            )
+        self.db.flush()
+        return AiStatus.APPLIED
+
+    def mark_ai_status(self, ticket_id: UUID, status: AiStatus) -> None:
+        """Chốt `ai_status` cho các nhánh KHÔNG áp dụng (LOW_CONFIDENCE, FAILED).
+
+        Ticket giữ nguyên category/priority và nằm lại hàng chờ phân loại thủ
+        công — đây là kết quả chấp nhận được, không phải sự cố.
+        """
+        ticket = self.db.get(
+            Ticket, ticket_id, with_for_update=True, populate_existing=True
+        )
+        if ticket is None or ticket.ai_status != AiStatus.PENDING:
+            return
+        ticket.ai_status = status
+        self.db.flush()
+
+    def latest_ai_classification(
+        self, user: User, ticket_id: UUID
+    ) -> AiClassification | None:
+        """Gợi ý gần nhất của AI cho ticket. `_load` trước để kiểm tra quyền xem."""
+        self._load(user, ticket_id)
+        return self.db.execute(
+            select(AiClassification)
+            .options(selectinload(AiClassification.suggested_category))
+            .where(AiClassification.ticket_id == ticket_id)
+            .order_by(AiClassification.created_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+
+    # ── US-20: Gợi ý người xử lý ──────────────────────────────────────
+
+    def assignee_suggestions(
+        self, user: User, ticket_id: UUID, *, now: datetime | None = None
+    ) -> tuple[Ticket, list[ScoredAgent]]:
+        if not TicketAccessPolicy.can_assign(user):
+            raise ForbiddenError("Chỉ IT Agent và Admin xem được gợi ý người xử lý")
+
+        ticket = self._load(user, ticket_id)
+        service = AssigneeSuggestionService(self.db)
+        return ticket, service.suggest(ticket, now=now or datetime.now(UTC))
+
+    # ── US-21: Agent sửa lại phân loại của AI ─────────────────────────
+
+    def _record_ai_correction(
+        self, ticket: Ticket, corrected_category_id: UUID | None
+    ) -> None:
+        """Đánh dấu bản ghi AI là bị sửa, để US-22 đo được độ chính xác thật.
+
+        Chỉ tính khi AI THẬT SỰ đã áp dụng phân loại này (`was_applied`). AI
+        chưa từng chạy, hoặc gợi ý đã bị bỏ qua vì độ tin cậy thấp, thì không
+        có gì để tính là sai — tính vào sẽ kéo tỉ lệ chính xác xuống thấp hơn
+        sự thật và làm cả chỉ số trở nên vô dụng.
+        """
+        record = self.db.execute(
+            select(AiClassification)
+            .where(
+                AiClassification.ticket_id == ticket.id,
+                AiClassification.was_applied.is_(True),
+            )
+            .order_by(AiClassification.created_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if record is None:
+            return
+
+        if record.suggested_category_id == corrected_category_id:
+            # Agent đổi đi rồi đổi lại đúng loại AI đã chọn ⇒ hoàn tác việc
+            # đánh dấu sai. Nếu không, một thao tác nhầm rồi sửa lại sẽ vĩnh
+            # viễn bị đếm là "AI sai".
+            record.was_accepted = None
+            record.corrected_category_id = None
+            record.corrected_at = None
+            return
+
+        record.was_accepted = False
+        record.corrected_category_id = corrected_category_id
+        record.corrected_at = datetime.now(UTC)
+
+    def _settle_ai_accuracy(self, ticket: Ticket) -> None:
+        """Ticket đóng mà không ai sửa ⇒ phân loại của AI được chấp nhận (US-21).
+
+        Chốt sổ tại đây thay vì để `NULL` mãi: `was_accepted IS NULL` không
+        phân biệt được "ticket chưa xong" với "không ai buồn sửa", mà báo cáo
+        US-22 cần đúng sự phân biệt đó để tính mẫu số.
+        """
+        self.db.execute(
+            update(AiClassification)
+            .where(
+                AiClassification.ticket_id == ticket.id,
+                AiClassification.was_applied.is_(True),
+                AiClassification.was_accepted.is_(None),
+            )
+            .values(was_accepted=True)
+        )
+
+    # ── US-14: Tự động đóng ticket đã xử lý xong ──────────────────────
+
+    def auto_close_resolved(self, *, now: datetime | None = None) -> list[UUID]:
+        """Đóng ticket RESOLVED quá `AUTO_CLOSE_AFTER_DAYS` ngày (job định kỳ).
+
+        Không có bước này, ticket đã xử lý xong nằm mãi ở RESOLVED và mọi báo
+        cáo "còn bao nhiêu việc đang mở" đều sai. Hành động của hệ thống nên
+        `actor_id = NULL`, `actor_type = SYSTEM` (docs/design/02 US-17).
+        """
+        moment = now or datetime.now(UTC)
+        cutoff = moment - timedelta(days=TicketStateMachine.AUTO_CLOSE_AFTER_DAYS)
+
+        tickets = list(self.db.execute(
+            select(Ticket).where(
+                Ticket.status == TicketStatus.RESOLVED,
+                Ticket.resolved_at.is_not(None),
+                Ticket.resolved_at <= cutoff,
+            )
+        ).scalars().all())
+
+        for ticket in tickets:
+            self._settle_ai_accuracy(ticket)
+            ticket.status = TicketStatus.CLOSED
+            ticket.closed_at = moment
+            self._bump(ticket)
+            self._record(
+                ticket, None, EventType.AUTO_CLOSED,
+                field_name="status",
+                old_value=TicketStatus.RESOLVED, new_value=TicketStatus.CLOSED,
+                event_metadata={"afterDays": TicketStateMachine.AUTO_CLOSE_AFTER_DAYS},
+            )
+
+        if tickets:
+            self.db.commit()
+        return [t.id for t in tickets]
+
     # ── Nội bộ ────────────────────────────────────────────────────────
 
     def _load(self, user: User, ticket_id: UUID) -> Ticket:
@@ -436,13 +669,19 @@ class TicketService:
         old_value: str | None = None,
         new_value: str | None = None,
         event_metadata: dict | None = None,
+        actor_type: ActorType | None = None,
     ) -> None:
-        """Ghi vào nhật ký chỉ-ghi-thêm (BR-17)."""
+        """Ghi vào nhật ký chỉ-ghi-thêm (BR-17).
+
+        `actor_type` chỉ cần truyền khi người thực hiện KHÔNG phải người dùng
+        và cũng không phải hệ thống — hiện chỉ có AI (US-19). Mặc định suy ra
+        từ việc có `user` hay không.
+        """
         self.events.add(
             TicketEvent(
                 ticket_id=ticket.id,
                 actor_id=user.id if user else None,
-                actor_type=ActorType.USER if user else ActorType.SYSTEM,
+                actor_type=actor_type or (ActorType.USER if user else ActorType.SYSTEM),
                 event_type=event_type,
                 field_name=field_name,
                 old_value=str(old_value) if old_value is not None else None,

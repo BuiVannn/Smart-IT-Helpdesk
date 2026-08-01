@@ -137,6 +137,7 @@ GET /api/v1/tickets?page=1&pageSize=20&sortBy=createdAt&sortOrder=desc
 | `GET /tickets/{id}/events` | Ticket của mình | ✓ | ✓ |
 | `POST /tickets/{id}/rating` | Chỉ requester, ticket `RESOLVED`/`CLOSED` | ✗ | ✗ |
 | `GET /tickets/{id}/assignee-suggestions` | ✗ | ✓ | ✓ |
+| `GET /tickets/{id}/ai-classification` | Ticket của mình | ✓ | ✓ |
 | `GET /kb/articles` (đã publish) | ✓ | ✓ | ✓ |
 | `POST` · `PATCH` · `DELETE /kb/articles` | ✗ | ✗ | ✓ |
 | `GET /kb/articles?status=DRAFT` | ✗ | ✗ | ✓ |
@@ -225,6 +226,7 @@ GET /api/v1/tickets?page=1&pageSize=20&sortBy=createdAt&sortOrder=desc
 | `GET` | `/tickets/{id}/attachments/{aid}/download` | Trả về `302` tới pre-signed URL |
 | `GET` | `/tickets/{id}/events` | Lịch sử thay đổi |
 | `GET` | `/tickets/{id}/assignee-suggestions` | Top 3 gợi ý người xử lý |
+| `GET` | `/tickets/{id}/ai-classification` | Gợi ý phân loại gần nhất của AI; trả `null` khi worker chưa xong |
 | `POST` | `/tickets/{id}/rating` · `PATCH` | Đánh giá sau xử lý |
 | `GET` | `/tickets/stats/queue` | Số đếm nhanh cho thanh bên của Agent |
 

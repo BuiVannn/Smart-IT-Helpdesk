@@ -122,9 +122,26 @@ class FakeLlmClient:
         return "Đây là câu trả lời mẫu từ FakeLlmClient dùng cho môi trường phát triển."
 
     def _classify(self, user: str) -> dict[str, Any]:
-        lowered = user.lower()
+        lowered = self._ticket_text(user).lower()
         for keywords, result in KEYWORD_RULES:
             if any(k in lowered for k in keywords):
                 return {**DEFAULT_CLASSIFICATION, **result,
                         "reasoning": f"Khớp từ khoá: {keywords[0]}"}
         return dict(DEFAULT_CLASSIFICATION)
+
+    @staticmethod
+    def _ticket_text(user: str) -> str:
+        """Chỉ lấy phần NỘI DUNG TICKET, bỏ danh sách loại sự cố ở đầu prompt.
+
+        ★ Không có bước này, mọi ticket đều bị phân loại là `network`: prompt
+        phân loại luôn kèm danh sách category, trong đó có dòng
+        "- network: Mạng & Internet", và từ khoá "mạng"/"internet" khớp ngay
+        ở đó trước khi chạm tới mô tả thật của người dùng.
+
+        Hậu quả không nhìn thấy trong test đơn lẻ nhưng rất rõ khi demo: mặc
+        định `LLM_PROVIDER=fake`, nên đây chính là bộ não mà người xem nhìn
+        thấy khi chưa cắm API key thật.
+        """
+        marker = "Tiêu đề:"
+        index = user.rfind(marker)
+        return user[index:] if index != -1 else user

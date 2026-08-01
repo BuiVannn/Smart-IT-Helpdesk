@@ -179,6 +179,42 @@ export interface Page<T> {
   pagination: PaginationMeta
 }
 
+// ─────────────── F3 — AI phân loại & gợi ý người xử lý ───────────────
+
+/** Gợi ý phân loại gần nhất của AI (US-19). `null` khi AI chưa chạy xong. */
+export interface AiClassification {
+  id: string
+  suggestedCategory: Category | null
+  suggestedPriority: TicketPriority | null
+  confidence: number | null
+  reasoning: string | null
+  wasApplied: boolean
+  wasAccepted: boolean | null
+  modelName: string
+  promptVersion: string
+  latencyMs: number | null
+  errorMessage: string | null
+  createdAt: string
+}
+
+/** Một ứng viên xử lý (US-20). Cố tình KHÔNG có email, như `UserBrief`. */
+export interface AssigneeSuggestion {
+  agentId: string
+  fullName: string
+  score: number
+  skillLevel: number
+  openTickets: number
+  weightedLoad: number
+  onDuty: boolean
+  reason: string
+}
+
+export interface AssigneeSuggestions {
+  category: Category | null
+  suggestions: AssigneeSuggestion[]
+  generatedAt: string
+}
+
 /** Định dạng lỗi thống nhất — MỌI lỗi từ backend đều có hình dạng này */
 export interface ApiErrorBody {
   error: {
