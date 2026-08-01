@@ -23,8 +23,7 @@ SEARCH_CONDITION = text(
 # Viết thẳng DESC vào chuỗi vì `text()` không có `.desc()` — nó là mẩu SQL thô,
 # không phải cột.
 SEARCH_RANK_DESC = text(
-    "ts_rank(kb_articles.search_vector, "
-    "plainto_tsquery('simple', immutable_unaccent(:q))) DESC"
+    "ts_rank(kb_articles.search_vector, " "plainto_tsquery('simple', immutable_unaccent(:q))) DESC"
 )
 
 
@@ -38,9 +37,12 @@ class KbArticleRepository:
         return article
 
     def slug_exists(self, slug: str) -> bool:
-        return self.session.execute(
-            select(func.count()).select_from(KbArticle).where(KbArticle.slug == slug)
-        ).scalar_one() > 0
+        return (
+            self.session.execute(
+                select(func.count()).select_from(KbArticle).where(KbArticle.slug == slug)
+            ).scalar_one()
+            > 0
+        )
 
     def get(self, article_id: UUID) -> KbArticle | None:
         return self.session.execute(
@@ -78,9 +80,7 @@ class KbArticleRepository:
         if keyword:
             stmt = stmt.where(SEARCH_CONDITION).params(q=keyword)
 
-        total = self.session.execute(
-            select(func.count()).select_from(stmt.subquery())
-        ).scalar_one()
+        total = self.session.execute(select(func.count()).select_from(stmt.subquery())).scalar_one()
 
         ordering = (
             [SEARCH_RANK_DESC, KbArticle.view_count.desc()]
@@ -90,13 +90,17 @@ class KbArticleRepository:
             else [KbArticle.view_count.desc(), KbArticle.updated_at.desc()]
         )
 
-        rows = self.session.execute(
-            stmt.options(selectinload(KbArticle.category))
-            .order_by(*ordering, KbArticle.id.desc())
-            .offset(params.offset)
-            .limit(params.limit)
-            .params(q=keyword)
-        ).scalars().all()
+        rows = (
+            self.session.execute(
+                stmt.options(selectinload(KbArticle.category))
+                .order_by(*ordering, KbArticle.id.desc())
+                .offset(params.offset)
+                .limit(params.limit)
+                .params(q=keyword)
+            )
+            .scalars()
+            .all()
+        )
 
         return list(rows), total
 
@@ -119,7 +123,9 @@ class KbArticleRepository:
                 .order_by(SEARCH_RANK_DESC)
                 .limit(limit)
                 .params(q=keyword)
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
 
     def increment_view(self, article: KbArticle) -> None:
@@ -172,13 +178,14 @@ class KbCategoryRepository:
         return self.session.get(KbCategory, category_id)
 
     def slug_exists(self, slug: str) -> bool:
-        return self.session.execute(
-            select(func.count()).select_from(KbCategory).where(KbCategory.slug == slug)
-        ).scalar_one() > 0
+        return (
+            self.session.execute(
+                select(func.count()).select_from(KbCategory).where(KbCategory.slug == slug)
+            ).scalar_one()
+            > 0
+        )
 
-    def list_with_counts(
-        self, *, published_only: bool
-    ) -> list[tuple[KbCategory, int]]:
+    def list_with_counts(self, *, published_only: bool) -> list[tuple[KbCategory, int]]:
         """Chủ đề kèm SỐ BÀI (US-31).
 
         Đếm bằng LEFT JOIN trong một truy vấn. Lặp qua từng chủ đề rồi đếm

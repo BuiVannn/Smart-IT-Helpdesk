@@ -86,9 +86,7 @@ class TestTaoTicket:
 class TestCachLy:
     """★ NHÓM TEST QUAN TRỌNG NHẤT — nhân viên không được thấy ticket người khác."""
 
-    def test_nhan_vien_chi_thay_ticket_cua_minh(
-        self, client, make_user, login, sla_policies
-    ):
+    def test_nhan_vien_chi_thay_ticket_cua_minh(self, client, make_user, login, sla_policies):
         a, b = make_user(), make_user()
 
         as_user(client, login, a)
@@ -97,9 +95,9 @@ class TestCachLy:
         as_user(client, login, b)
         body = client.get(BASE).json()
 
-        assert body["pagination"]["totalItems"] == 0, (
-            "totalItems phải lọc theo quyền — nếu không là lộ tổng số ticket toàn công ty"
-        )
+        assert (
+            body["pagination"]["totalItems"] == 0
+        ), "totalItems phải lọc theo quyền — nếu không là lộ tổng số ticket toàn công ty"
         assert body["data"] == []
 
     def test_xem_ticket_nguoi_khac_tra_404_KHONG_phai_403(
@@ -128,9 +126,7 @@ class TestCachLy:
     def test_agent_xem_duoc_hang_cho(self, client, make_user, login, sla_policies):
         as_user(client, login, make_user(role=UserRole.IT_AGENT))
         body = client.get(f"{BASE}/stats/queue").json()
-        assert set(body) == {
-            "unassigned", "assignedToMe", "inProgress", "atRisk", "breached"
-        }
+        assert set(body) == {"unassigned", "assignedToMe", "inProgress", "atRisk", "breached"}
 
 
 class TestGiaoViec:
@@ -142,9 +138,7 @@ class TestGiaoViec:
 
         agent = make_user(role=UserRole.IT_AGENT)
         as_user(client, login, agent)
-        response = client.post(
-            f"{BASE}/{ticket['id']}/claim", json={"version": ticket["version"]}
-        )
+        response = client.post(f"{BASE}/{ticket['id']}/claim", json={"version": ticket["version"]})
 
         assert response.status_code == 200
         assert response.json()["status"] == TicketStatus.ASSIGNED
@@ -159,9 +153,7 @@ class TestGiaoViec:
         ticket = create_ticket(client)
 
         as_user(client, login, make_user(role=UserRole.IT_AGENT))
-        assert client.post(
-            f"{BASE}/{ticket['id']}/claim", json={"version": 1}
-        ).status_code == 200
+        assert client.post(f"{BASE}/{ticket['id']}/claim", json={"version": 1}).status_code == 200
 
         as_user(client, login, make_user(role=UserRole.IT_AGENT))
         response = client.post(f"{BASE}/{ticket['id']}/claim", json={"version": 1})
@@ -276,9 +268,7 @@ class TestChuyenTrangThai:
         )
         assert response.status_code == 409
 
-    def test_nguoi_tao_huy_duoc_ticket_cua_minh(
-        self, client, make_user, login, sla_policies
-    ):
+    def test_nguoi_tao_huy_duoc_ticket_cua_minh(self, client, make_user, login, sla_policies):
         """US-18 — huỷ khi ticket còn ở NEW."""
         as_user(client, login, make_user())
         ticket = create_ticket(client)
@@ -289,9 +279,7 @@ class TestChuyenTrangThai:
         assert response.status_code == 200
         assert response.json()["status"] == TicketStatus.CANCELLED
 
-    def test_allowed_transitions_theo_dung_vai_tro(
-        self, client, make_user, login, sla_policies
-    ):
+    def test_allowed_transitions_theo_dung_vai_tro(self, client, make_user, login, sla_policies):
         as_user(client, login, make_user())
         ticket = create_ticket(client)
 
@@ -349,9 +337,7 @@ class TestBinhLuan:
         ticket = create_ticket(client)
 
         as_user(client, login, make_user())
-        response = client.post(
-            f"{BASE}/{ticket['id']}/comments", json={"body": "Tôi xem trộm"}
-        )
+        response = client.post(f"{BASE}/{ticket['id']}/comments", json={"body": "Tôi xem trộm"})
         assert response.status_code == 404
 
 
@@ -370,9 +356,7 @@ class TestTimKiemVaLichSu:
         body = employee_client.get(BASE, params={"q": "mat khau"}).json()
         assert body["pagination"]["totalItems"] == 1
 
-    def test_tim_kiem_khong_vuot_qua_pham_vi_quyen(
-        self, client, make_user, login, sla_policies
-    ):
+    def test_tim_kiem_khong_vuot_qua_pham_vi_quyen(self, client, make_user, login, sla_policies):
         as_user(client, login, make_user())
         create_ticket(client, title="Quên mật khẩu đăng nhập máy tính")
 

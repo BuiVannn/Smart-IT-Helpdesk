@@ -27,16 +27,26 @@ DEFAULT_CLASSIFICATION = {
 # cờ `dominant` ở RuleBasedClassifier: chậm một giờ với mã độc đắt hơn nhiều
 # so với gán nhầm một ticket phần mềm.
 KEYWORD_RULES: list[tuple[tuple[str, ...], dict[str, Any]]] = [
-    (("virus", "mã độc", "bảo mật", "lừa đảo", "phishing"),
-     {"category_slug": "security", "priority": "URGENT", "confidence": 0.95}),
-    (("wifi", "mạng", "internet", "vpn", "kết nối"),
-     {"category_slug": "network", "priority": "HIGH", "confidence": 0.92}),
-    (("mật khẩu", "password", "đăng nhập", "tài khoản"),
-     {"category_slug": "account", "priority": "MEDIUM", "confidence": 0.88}),
-    (("máy in", "màn hình", "chuột", "bàn phím", "laptop"),
-     {"category_slug": "hardware", "priority": "MEDIUM", "confidence": 0.85}),
-    (("phần mềm", "cài đặt", "office", "excel"),
-     {"category_slug": "software", "priority": "LOW", "confidence": 0.80}),
+    (
+        ("virus", "mã độc", "bảo mật", "lừa đảo", "phishing"),
+        {"category_slug": "security", "priority": "URGENT", "confidence": 0.95},
+    ),
+    (
+        ("wifi", "mạng", "internet", "vpn", "kết nối"),
+        {"category_slug": "network", "priority": "HIGH", "confidence": 0.92},
+    ),
+    (
+        ("mật khẩu", "password", "đăng nhập", "tài khoản"),
+        {"category_slug": "account", "priority": "MEDIUM", "confidence": 0.88},
+    ),
+    (
+        ("máy in", "màn hình", "chuột", "bàn phím", "laptop"),
+        {"category_slug": "hardware", "priority": "MEDIUM", "confidence": 0.85},
+    ),
+    (
+        ("phần mềm", "cài đặt", "office", "excel"),
+        {"category_slug": "software", "priority": "LOW", "confidence": 0.80},
+    ),
 ]
 
 
@@ -109,9 +119,7 @@ class FakeLlmClient:
             latency_ms=5,
         )
 
-    async def stream(
-        self, *, system: str, user: str, max_tokens: int = 800
-    ) -> AsyncIterator[str]:
+    async def stream(self, *, system: str, user: str, max_tokens: int = 800) -> AsyncIterator[str]:
         self.stream_count += 1
         self.last_prompt = f"{system}\n{user}"
         if self.should_fail:
@@ -132,8 +140,11 @@ class FakeLlmClient:
         lowered = self._ticket_text(user).lower()
         for keywords, result in KEYWORD_RULES:
             if any(k in lowered for k in keywords):
-                return {**DEFAULT_CLASSIFICATION, **result,
-                        "reasoning": f"Khớp từ khoá: {keywords[0]}"}
+                return {
+                    **DEFAULT_CLASSIFICATION,
+                    **result,
+                    "reasoning": f"Khớp từ khoá: {keywords[0]}",
+                }
         return dict(DEFAULT_CLASSIFICATION)
 
     @staticmethod

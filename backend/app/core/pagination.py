@@ -5,12 +5,9 @@ frontend đã code là một thay đổi phá vỡ tương thích.
 """
 
 from math import ceil
-from typing import Generic, TypeVar
 
 from fastapi import Query
 from pydantic import BaseModel, Field
-
-T = TypeVar("T")
 
 MAX_PAGE_SIZE = 100
 DEFAULT_PAGE_SIZE = 20
@@ -43,7 +40,7 @@ class PaginationMeta(BaseModel):
     total_pages: int = Field(serialization_alias="totalPages")
 
 
-class Page(BaseModel, Generic[T]):
+class Page[T](BaseModel):
     data: list[T]
     pagination: PaginationMeta
 

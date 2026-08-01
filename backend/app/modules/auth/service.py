@@ -92,7 +92,7 @@ class AuthService:
             email=email,
             full_name=data.full_name.strip(),
             password_hash=hash_password(data.password),
-            role=UserRole.EMPLOYEE,   # vai trò do Admin nâng, không tự chọn khi đăng ký
+            role=UserRole.EMPLOYEE,  # vai trò do Admin nâng, không tự chọn khi đăng ký
             is_active=True,
         )
         self.users.add(user)
@@ -130,9 +130,9 @@ class AuthService:
         if not user.is_active:
             # Lỗi KHÁC với sai mật khẩu: người dùng cần biết để đi liên hệ Admin,
             # và kẻ tấn công đằng nào cũng đã có mật khẩu đúng rồi.
-            logger.warning("đăng nhập vào tài khoản bị khoá", extra={
-                "extra_fields": {"user_id": str(user.id)}
-            })
+            logger.warning(
+                "đăng nhập vào tài khoản bị khoá", extra={"extra_fields": {"user_id": str(user.id)}}
+            )
             raise AccountDisabledError()
 
         self.login_limiter.reset(email)
@@ -163,9 +163,9 @@ class AuthService:
             self.db.commit()
             logger.error(
                 "PHÁT HIỆN TÁI SỬ DỤNG REFRESH TOKEN — đã thu hồi toàn bộ phiên",
-                extra={"extra_fields": {
-                    "user_id": str(stored.user_id), "sessions_revoked": revoked
-                }},
+                extra={
+                    "extra_fields": {"user_id": str(stored.user_id), "sessions_revoked": revoked}
+                },
             )
             raise UnauthenticatedError(
                 "Phiên đăng nhập đã bị thu hồi vì lý do an toàn. Vui lòng đăng nhập lại."
@@ -203,9 +203,10 @@ class AuthService:
     def logout_all(self, user_id: UUID) -> int:
         count = self.tokens.revoke_all_for_user(user_id)
         self.db.commit()
-        logger.info("đăng xuất toàn bộ thiết bị", extra={"extra_fields": {
-            "user_id": str(user_id), "sessions_revoked": count
-        }})
+        logger.info(
+            "đăng xuất toàn bộ thiết bị",
+            extra={"extra_fields": {"user_id": str(user_id), "sessions_revoked": count}},
+        )
         return count
 
     # ── US-05: Đổi mật khẩu ───────────────────────────────────────────
@@ -224,9 +225,10 @@ class AuthService:
         count = self.tokens.revoke_all_for_user(user.id)
         self.db.commit()
 
-        logger.info("đổi mật khẩu", extra={"extra_fields": {
-            "user_id": str(user.id), "sessions_revoked": count
-        }})
+        logger.info(
+            "đổi mật khẩu",
+            extra={"extra_fields": {"user_id": str(user.id), "sessions_revoked": count}},
+        )
         return count
 
     # ── Nội bộ ────────────────────────────────────────────────────────
@@ -239,8 +241,7 @@ class AuthService:
             RefreshToken(
                 user_id=user.id,
                 token_hash=token_hash,
-                expires_at=datetime.now(UTC)
-                + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+                expires_at=datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
                 user_agent=(client.user_agent or "")[:300] or None,
                 ip_address=client.ip_address,
             )

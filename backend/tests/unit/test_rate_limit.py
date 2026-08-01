@@ -8,13 +8,11 @@ from app.core.rate_limit import AttemptLimiter, MemoryAttemptStore
 
 @pytest.fixture
 def limiter() -> AttemptLimiter:
-    return AttemptLimiter(
-        MemoryAttemptStore(), max_attempts=3, window_seconds=900, prefix="thu"
-    )
+    return AttemptLimiter(MemoryAttemptStore(), max_attempts=3, window_seconds=900, prefix="thu")
 
 
 def test_chua_that_bai_lan_nao_thi_khong_chan(limiter):
-    limiter.raise_if_blocked("a@company.com")   # không được ném lỗi
+    limiter.raise_if_blocked("a@company.com")  # không được ném lỗi
 
 
 def test_chan_khi_dat_nguong(limiter):
@@ -70,9 +68,7 @@ def test_loi_kem_header_Retry_After(limiter):
 def test_cua_so_het_han_thi_dem_lai_tu_dau():
     """Cửa sổ 0 giây ⇒ hết hạn ngay. Không có bước này thì tài khoản bị khoá
     vĩnh viễn sau 3 lần gõ nhầm."""
-    limiter = AttemptLimiter(
-        MemoryAttemptStore(), max_attempts=3, window_seconds=0, prefix="thu"
-    )
+    limiter = AttemptLimiter(MemoryAttemptStore(), max_attempts=3, window_seconds=0, prefix="thu")
     for _ in range(3):
         limiter.record_failure("a@company.com")
 

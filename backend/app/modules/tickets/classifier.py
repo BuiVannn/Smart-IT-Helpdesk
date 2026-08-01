@@ -88,6 +88,7 @@ class ClassificationOutcome:
 # Tầng 4 — phân loại bằng từ khoá. LỚP THUẦN, không I/O, không LLM.
 # ─────────────────────────────────────────────────────────────────────
 
+
 def normalize(text: str) -> str:
     """Bỏ dấu tiếng Việt và hạ chữ thường.
 
@@ -117,34 +118,114 @@ class KeywordRule:
 
 # Thứ tự có ý nghĩa: khi hai luật khớp bằng số từ khoá thì luật đứng trước thắng.
 KEYWORD_RULES: tuple[KeywordRule, ...] = (
-    KeywordRule("security", TicketPriority.URGENT, (
-        "virus", "ma doc", "malware", "ransomware", "lua dao", "phishing",
-        "bao mat", "lo du lieu", "tan cong", "hack", "gia mao",
-    ), dominant=True),
-    KeywordRule("network", TicketPriority.HIGH, (
-        "wifi", "mang", "internet", "vpn", "ket noi", "router", "switch",
-        "rot mang", "mat mang", "duong truyen",
-    )),
-    KeywordRule("account", TicketPriority.MEDIUM, (
-        "mat khau", "password", "dang nhap", "tai khoan", "khoa tai khoan",
-        "quen mat khau", "otp", "xac thuc", "doi mat khau",
-    )),
-    KeywordRule("email", TicketPriority.MEDIUM, (
-        "email", "outlook", "hom thu", "gui mail", "nhan mail", "hop thu",
-        "lich hop", "calendar",
-    )),
-    KeywordRule("access", TicketPriority.MEDIUM, (
-        "cap quyen", "phan quyen", "quyen truy cap", "truy cap thu muc",
-        "share folder", "thu muc chung",
-    )),
-    KeywordRule("hardware", TicketPriority.MEDIUM, (
-        "may in", "man hinh", "chuot", "ban phim", "laptop", "may tinh",
-        "o cung", "khong len nguon", "docking", "tai nghe", "webcam",
-    )),
-    KeywordRule("software", TicketPriority.MEDIUM, (
-        "phan mem", "cai dat", "office", "excel", "word", "ung dung",
-        "license", "ban quyen", "cap nhat", "phien ban",
-    )),
+    KeywordRule(
+        "security",
+        TicketPriority.URGENT,
+        (
+            "virus",
+            "ma doc",
+            "malware",
+            "ransomware",
+            "lua dao",
+            "phishing",
+            "bao mat",
+            "lo du lieu",
+            "tan cong",
+            "hack",
+            "gia mao",
+        ),
+        dominant=True,
+    ),
+    KeywordRule(
+        "network",
+        TicketPriority.HIGH,
+        (
+            "wifi",
+            "mang",
+            "internet",
+            "vpn",
+            "ket noi",
+            "router",
+            "switch",
+            "rot mang",
+            "mat mang",
+            "duong truyen",
+        ),
+    ),
+    KeywordRule(
+        "account",
+        TicketPriority.MEDIUM,
+        (
+            "mat khau",
+            "password",
+            "dang nhap",
+            "tai khoan",
+            "khoa tai khoan",
+            "quen mat khau",
+            "otp",
+            "xac thuc",
+            "doi mat khau",
+        ),
+    ),
+    KeywordRule(
+        "email",
+        TicketPriority.MEDIUM,
+        (
+            "email",
+            "outlook",
+            "hom thu",
+            "gui mail",
+            "nhan mail",
+            "hop thu",
+            "lich hop",
+            "calendar",
+        ),
+    ),
+    KeywordRule(
+        "access",
+        TicketPriority.MEDIUM,
+        (
+            "cap quyen",
+            "phan quyen",
+            "quyen truy cap",
+            "truy cap thu muc",
+            "share folder",
+            "thu muc chung",
+        ),
+    ),
+    KeywordRule(
+        "hardware",
+        TicketPriority.MEDIUM,
+        (
+            "may in",
+            "man hinh",
+            "chuot",
+            "ban phim",
+            "laptop",
+            "may tinh",
+            "o cung",
+            "khong len nguon",
+            "docking",
+            "tai nghe",
+            "webcam",
+        ),
+    ),
+    KeywordRule(
+        "software",
+        TicketPriority.MEDIUM,
+        (
+            "phan mem",
+            "cai dat",
+            "office",
+            "excel",
+            "word",
+            "ung dung",
+            "license",
+            "ban quyen",
+            "cap nhat",
+            "phien ban",
+        ),
+    ),
 )
 
 
@@ -160,9 +241,7 @@ class RuleBasedClassifier:
         # Biên dịch sẵn, và dùng ranh giới từ: nếu không, "mang" sẽ khớp cả
         # bên trong "mangan" và mọi luật đều dính nhau.
         self._compiled = [
-            (rule, [
-                (kw, re.compile(rf"\b{re.escape(normalize(kw))}\b")) for kw in rule.keywords
-            ])
+            (rule, [(kw, re.compile(rf"\b{re.escape(normalize(kw))}\b")) for kw in rule.keywords])
             for rule in rules
         ]
 
@@ -198,6 +277,7 @@ class RuleBasedClassifier:
 # Tầng 1–3 — gọi LLM, kiểm chứng, ghi kết quả
 # ─────────────────────────────────────────────────────────────────────
 
+
 class TicketClassifier:
     """Điều phối một lượt phân loại cho MỘT ticket.
 
@@ -232,9 +312,10 @@ class TicketClassifier:
     async def classify(self, ticket_id: UUID) -> ClassificationOutcome:
         ticket = self.session.get(Ticket, ticket_id)
         if ticket is None:
-            logger.warning("phân loại: không tìm thấy ticket", extra={
-                "extra_fields": {"ticket_id": str(ticket_id)}
-            })
+            logger.warning(
+                "phân loại: không tìm thấy ticket",
+                extra={"extra_fields": {"ticket_id": str(ticket_id)}},
+            )
             return ClassificationOutcome(ticket_id, AiStatus.FAILED, error="Ticket không tồn tại")
 
         # Bảo đảm chạy lại nhiều lần vẫn an toàn: Celery giao lại task sau khi
@@ -246,7 +327,9 @@ class TicketClassifier:
         categories = self._active_categories()
         if not categories:
             return self._finish(
-                ticket_id, None, AiStatus.FAILED,
+                ticket_id,
+                None,
+                AiStatus.FAILED,
                 error="Chưa cấu hình loại sự cố nào đang hoạt động",
             )
 
@@ -262,16 +345,24 @@ class TicketClassifier:
 
         if suggestion is None:
             return self._finish(
-                ticket_id, None, AiStatus.FAILED, error=error or "Không phân loại được",
-                latency_ms=latency_ms, response=response,
+                ticket_id,
+                None,
+                AiStatus.FAILED,
+                error=error or "Không phân loại được",
+                latency_ms=latency_ms,
+                response=response,
             )
 
         if suggestion.confidence < self.threshold:
             # BR-14 — dưới ngưỡng thì ghi lại gợi ý nhưng KHÔNG tự áp dụng.
             # Ticket ở lại hàng chờ phân loại thủ công.
             return self._finish(
-                ticket_id, suggestion, AiStatus.LOW_CONFIDENCE, error=error,
-                latency_ms=latency_ms, response=response,
+                ticket_id,
+                suggestion,
+                AiStatus.LOW_CONFIDENCE,
+                error=error,
+                latency_ms=latency_ms,
+                response=response,
             )
 
         category = self._category_by_slug(categories, suggestion.category_slug)
@@ -283,13 +374,16 @@ class TicketClassifier:
             confidence=suggestion.confidence,
         )
         return self._finish(
-            ticket_id, suggestion, status, error=error,
-            latency_ms=latency_ms, response=response, category_id=category.id,
+            ticket_id,
+            suggestion,
+            status,
+            error=error,
+            latency_ms=latency_ms,
+            response=response,
+            category_id=category.id,
         )
 
-    async def suggest(
-        self, title: str, description: str
-    ) -> tuple[Suggestion | None, str | None]:
+    async def suggest(self, title: str, description: str) -> tuple[Suggestion | None, str | None]:
         """Phân loại một đoạn văn bản, KHÔNG chạm tới ticket nào.
 
         Dùng cho `scripts/eval_classification.py`: chạy 50 ca mẫu mà tạo 50
@@ -382,13 +476,16 @@ class TicketClassifier:
         if not 0.0 <= confidence <= 1.0:
             return None, f"LLM trả về confidence ngoài [0, 1]: {confidence}"
 
-        return Suggestion(
-            category_slug=slug,
-            priority=priority,
-            confidence=confidence,
-            reasoning=sanitize_reasoning(str(payload.get("reasoning") or "")),
-            source=ClassificationSource.LLM,
-        ), None
+        return (
+            Suggestion(
+                category_slug=slug,
+                priority=priority,
+                confidence=confidence,
+                reasoning=sanitize_reasoning(str(payload.get("reasoning") or "")),
+                source=ClassificationSource.LLM,
+            ),
+            None,
+        )
 
     def _fallback(
         self, title: str, description: str, categories: list[TicketCategory]
@@ -400,9 +497,10 @@ class TicketClassifier:
         # coi như không khớp, chứ không gán bừa vào một category đã tắt.
         if self._category_by_slug(categories, suggestion.category_slug) is None:
             return None
-        logger.info("dùng đường dự phòng đối chiếu từ khoá", extra={
-            "extra_fields": {"category": suggestion.category_slug}
-        })
+        logger.info(
+            "dùng đường dự phòng đối chiếu từ khoá",
+            extra={"extra_fields": {"category": suggestion.category_slug}},
+        )
         return suggestion
 
     # ── Ghi kết quả ───────────────────────────────────────────────────
@@ -427,24 +525,26 @@ class TicketClassifier:
         if suggestion is not None and category_id is None:
             category_id = self._slug_to_id(suggestion.category_slug)
 
-        self.session.add(AiClassification(
-            ticket_id=ticket_id,
-            model_name=self._model_name(suggestion, response),
-            prompt_version=(
-                RULES_VERSION
-                if suggestion is not None and suggestion.source == ClassificationSource.RULES
-                else CLASSIFY_PROMPT_VERSION
-            ),
-            suggested_category_id=category_id,
-            suggested_priority=suggestion.priority if suggestion else None,
-            confidence=suggestion.confidence if suggestion else None,
-            reasoning=suggestion.reasoning if suggestion else None,
-            was_applied=status == AiStatus.APPLIED,
-            latency_ms=latency_ms or (response.latency_ms if response else None),
-            prompt_tokens=response.prompt_tokens if response else None,
-            completion_tokens=response.completion_tokens if response else None,
-            error_message=error,
-        ))
+        self.session.add(
+            AiClassification(
+                ticket_id=ticket_id,
+                model_name=self._model_name(suggestion, response),
+                prompt_version=(
+                    RULES_VERSION
+                    if suggestion is not None and suggestion.source == ClassificationSource.RULES
+                    else CLASSIFY_PROMPT_VERSION
+                ),
+                suggested_category_id=category_id,
+                suggested_priority=suggestion.priority if suggestion else None,
+                confidence=suggestion.confidence if suggestion else None,
+                reasoning=suggestion.reasoning if suggestion else None,
+                was_applied=status == AiStatus.APPLIED,
+                latency_ms=latency_ms or (response.latency_ms if response else None),
+                prompt_tokens=response.prompt_tokens if response else None,
+                completion_tokens=response.completion_tokens if response else None,
+                error_message=error,
+            )
+        )
 
         # APPLIED/SKIPPED đã do TicketService đặt trong cùng transaction; ở đây
         # chỉ còn LOW_CONFIDENCE và FAILED cần chốt.
@@ -453,15 +553,20 @@ class TicketClassifier:
 
         self.session.commit()
 
-        logger.info("phân loại xong", extra={"extra_fields": {
-            "ticket_id": str(ticket_id),
-            "ai_status": status,
-            "category": suggestion.category_slug if suggestion else None,
-            "confidence": suggestion.confidence if suggestion else None,
-            "source": suggestion.source if suggestion else None,
-            "latency_ms": latency_ms,
-            "error": error,
-        }})
+        logger.info(
+            "phân loại xong",
+            extra={
+                "extra_fields": {
+                    "ticket_id": str(ticket_id),
+                    "ai_status": status,
+                    "category": suggestion.category_slug if suggestion else None,
+                    "confidence": suggestion.confidence if suggestion else None,
+                    "source": suggestion.source if suggestion else None,
+                    "latency_ms": latency_ms,
+                    "error": error,
+                }
+            },
+        )
         return ClassificationOutcome(ticket_id, status, suggestion, error, latency_ms)
 
     @staticmethod
@@ -475,16 +580,18 @@ class TicketClassifier:
     # ── Truy vấn phụ trợ ──────────────────────────────────────────────
 
     def _active_categories(self) -> list[TicketCategory]:
-        return list(self.session.execute(
-            select(TicketCategory)
-            .where(TicketCategory.is_active.is_(True))
-            .order_by(TicketCategory.sort_order, TicketCategory.slug)
-        ).scalars().all())
+        return list(
+            self.session.execute(
+                select(TicketCategory)
+                .where(TicketCategory.is_active.is_(True))
+                .order_by(TicketCategory.sort_order, TicketCategory.slug)
+            )
+            .scalars()
+            .all()
+        )
 
     @staticmethod
-    def _category_by_slug(
-        categories: list[TicketCategory], slug: object
-    ) -> TicketCategory | None:
+    def _category_by_slug(categories: list[TicketCategory], slug: object) -> TicketCategory | None:
         return next((c for c in categories if c.slug == slug), None)
 
     def _slug_to_id(self, slug: str) -> UUID | None:

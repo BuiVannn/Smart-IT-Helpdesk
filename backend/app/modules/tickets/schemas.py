@@ -26,6 +26,7 @@ DESCRIPTION = Field(min_length=10, max_length=5000)
 
 # ─────────────── Input ───────────────
 
+
 class CreateTicketRequest(StrictModel):
     title: str = TITLE
     description: str = DESCRIPTION
@@ -54,9 +55,7 @@ class ClaimRequest(StrictModel):
 
 class ChangeStatusRequest(StrictModel):
     status: TicketStatus
-    resolution_note: str | None = Field(
-        default=None, alias="resolutionNote", max_length=5000
-    )
+    resolution_note: str | None = Field(default=None, alias="resolutionNote", max_length=5000)
     version: int = Field(ge=1)
 
 
@@ -68,6 +67,7 @@ class CreateCommentRequest(StrictModel):
 
 
 # ─────────────── Output ───────────────
+
 
 class CategoryBrief(ResponseModel):
     id: UUID
@@ -104,9 +104,7 @@ class TicketResponse(TicketListItem):
     sla_response_due_at: datetime | None = Field(
         default=None, serialization_alias="slaResponseDueAt"
     )
-    first_response_at: datetime | None = Field(
-        default=None, serialization_alias="firstResponseAt"
-    )
+    first_response_at: datetime | None = Field(default=None, serialization_alias="firstResponseAt")
     resolved_at: datetime | None = Field(default=None, serialization_alias="resolvedAt")
     closed_at: datetime | None = Field(default=None, serialization_alias="closedAt")
 
@@ -150,6 +148,7 @@ class QueueStatsResponse(ResponseModel):
 
 # ─────────────── F3 — AI phân loại & gợi ý người xử lý ───────────────
 
+
 class AiClassificationResponse(ResponseModel):
     """Gợi ý gần nhất của AI cho một ticket (US-19, US-21).
 
@@ -159,8 +158,7 @@ class AiClassificationResponse(ResponseModel):
     """
 
     # `model_name` va vào không gian tên `model_` mà Pydantic giữ riêng.
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True,
-                              protected_namespaces=())
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True, protected_namespaces=())
 
     id: UUID
     suggested_category: CategoryBrief | None = Field(

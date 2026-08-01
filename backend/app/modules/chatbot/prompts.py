@@ -128,9 +128,7 @@ def build_rag_prompt(*, question: str, chunks: list[RetrievedChunk]) -> tuple[st
     return RAG_SYSTEM, user
 
 
-def build_rewrite_prompt(
-    *, question: str, history: list[tuple[str, str]]
-) -> tuple[str, str]:
+def build_rewrite_prompt(*, question: str, history: list[tuple[str, str]]) -> tuple[str, str]:
     """Dựng prompt viết lại câu hỏi.
 
     Args:

@@ -35,11 +35,13 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 
         logger.info(
             "request handled",
-            extra={"extra_fields": {
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": response.status_code,
-                "duration_ms": duration_ms,
-            }},
+            extra={
+                "extra_fields": {
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": response.status_code,
+                    "duration_ms": duration_ms,
+                }
+            },
         )
         return response

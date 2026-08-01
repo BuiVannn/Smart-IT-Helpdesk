@@ -37,7 +37,6 @@ def test_khoi_dong_duoc_ma_khong_can_conftest():
         timeout=90,
     )
     assert result.returncode == 0, (
-        "Ứng dụng KHÔNG khởi động được ngoài môi trường test.\n"
-        f"stderr:\n{result.stderr[-2000:]}"
+        "Ứng dụng KHÔNG khởi động được ngoài môi trường test.\n" f"stderr:\n{result.stderr[-2000:]}"
     )
     assert "OK" in result.stdout

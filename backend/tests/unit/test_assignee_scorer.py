@@ -22,9 +22,7 @@ MAX_LOAD = 20
 
 @pytest.fixture
 def scorer() -> AssigneeScorer:
-    return AssigneeScorer(
-        w_skill=W_SKILL, w_load=W_LOAD, w_duty=W_DUTY, max_load=MAX_LOAD
-    )
+    return AssigneeScorer(w_skill=W_SKILL, w_load=W_LOAD, w_duty=W_DUTY, max_load=MAX_LOAD)
 
 
 def snapshot(
@@ -85,7 +83,7 @@ class TestChamDiem:
         ngoai_ca = scorer.score(snapshot(skill=2), on_duty=False)
 
         assert ngoai_ca < trong_ca
-        assert ngoai_ca > 0   # vẫn được gợi ý, chỉ xếp sau
+        assert ngoai_ca > 0  # vẫn được gợi ý, chỉ xếp sau
 
 
 class TestXepHang:
@@ -168,9 +166,7 @@ class TestLyDoDocDuoc:
     def test_agent_chua_co_chuyen_mon_van_noi_ro(self, scorer):
         agent = snapshot(skill=0)
 
-        top = scorer.rank(
-            [agent], on_duty_of={agent.agent_id: False}, category_name="Bảo mật"
-        )
+        top = scorer.rank([agent], on_duty_of={agent.agent_id: False}, category_name="Bảo mật")
 
         assert "chưa ghi nhận chuyên môn" in top[0].reason.lower()
         assert "ngoài ca trực" in top[0].reason

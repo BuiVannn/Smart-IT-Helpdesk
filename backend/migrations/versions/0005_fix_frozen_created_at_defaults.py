@@ -31,6 +31,7 @@ chúng không bị ảnh hưởng.
 Revision ID: 0005
 Revises: 0004
 """
+
 from collections.abc import Sequence
 
 from alembic import op

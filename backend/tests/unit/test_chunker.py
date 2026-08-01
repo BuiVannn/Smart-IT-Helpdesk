@@ -53,7 +53,7 @@ def test_chunk_qua_ngan_duoc_gop():
     chunker = TextChunker(min_tokens=50)
     content = "## A\nNgắn.\n\n## B\nCũng ngắn."
     chunks = chunker.chunk(title="Test", content_md=content)
-    assert len(chunks) == 1   # hai mục ngắn được gộp làm một
+    assert len(chunks) == 1  # hai mục ngắn được gộp làm một
 
 
 def test_bai_rat_dai_bi_cat_nho():
@@ -70,6 +70,6 @@ def test_bai_rat_dai_bi_cat_nho():
 
     assert len(chunks) > 1, "văn bản dài phải bị cắt nhỏ"
     # Cho phép vượt một chút vì tiền tố ngữ cảnh được chèn thêm sau khi cắt
-    assert all(c.token_count <= max_tokens * 1.5 for c in chunks), (
-        f"chunk lớn nhất: {max(c.token_count for c in chunks)} token"
-    )
+    assert all(
+        c.token_count <= max_tokens * 1.5 for c in chunks
+    ), f"chunk lớn nhất: {max(c.token_count for c in chunks)} token"

@@ -161,9 +161,7 @@ def allowed_transitions(
     )
 
 
-@router.post(
-    "/{ticket_id}/claim", response_model=TicketResponse, summary="Agent tự nhận (US-13)"
-)
+@router.post("/{ticket_id}/claim", response_model=TicketResponse, summary="Agent tự nhận (US-13)")
 def claim_ticket(
     ticket_id: UUID,
     data: ClaimRequest,
@@ -174,9 +172,7 @@ def claim_ticket(
     return _detail(service, ticket, datetime.now(UTC))
 
 
-@router.post(
-    "/{ticket_id}/assign", response_model=TicketResponse, summary="Giao việc (US-13)"
-)
+@router.post("/{ticket_id}/assign", response_model=TicketResponse, summary="Giao việc (US-13)")
 def assign_ticket(
     ticket_id: UUID,
     data: AssignRequest,

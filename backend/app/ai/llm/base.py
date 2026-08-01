@@ -17,7 +17,7 @@ class LlmResponse:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     latency_ms: int = 0
-    parsed: dict[str, Any] | None = None   # có giá trị khi dùng JSON schema
+    parsed: dict[str, Any] | None = None  # có giá trị khi dùng JSON schema
 
 
 class LlmClient(Protocol):

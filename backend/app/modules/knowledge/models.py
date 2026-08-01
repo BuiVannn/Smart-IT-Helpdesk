@@ -73,15 +73,11 @@ class KbArticle(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         back_populates="article", cascade="all, delete-orphan"
     )
     # Quan hệ ORM thuần, không thêm cột nên không cần migration.
-    category: Mapped[KbCategory | None] = relationship(
-        foreign_keys=[kb_category_id]
-    )
+    category: Mapped[KbCategory | None] = relationship(foreign_keys=[kb_category_id])
     author = relationship("User")
 
     __table_args__ = (
-        CheckConstraint(
-            "status <> 'PUBLISHED' OR published_at IS NOT NULL", name="published"
-        ),
+        CheckConstraint("status <> 'PUBLISHED' OR published_at IS NOT NULL", name="published"),
         CheckConstraint("char_length(content_md) >= 20", name="content_len"),
         Index("ix_articles_search", "search_vector", postgresql_using="gin"),
     )

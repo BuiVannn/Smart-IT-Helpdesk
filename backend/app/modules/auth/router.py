@@ -67,7 +67,7 @@ def _set_refresh_cookie(response: Response, raw_token: str) -> None:
         REFRESH_COOKIE,
         raw_token,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600,
-        httponly=True,   # JavaScript KHÔNG đọc được — XSS không lấy được phiên
+        httponly=True,  # JavaScript KHÔNG đọc được — XSS không lấy được phiên
         secure=settings.ENVIRONMENT != "local",
         samesite="strict",
         # Giới hạn đường dẫn: cookie chỉ được gửi tới các endpoint auth, không

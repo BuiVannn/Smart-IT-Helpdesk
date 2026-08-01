@@ -43,6 +43,7 @@ def _detail(service: KbArticleService, article: KbArticle) -> ArticleResponse:
 # Đặt TRƯỚC "/articles/{slug}" là không cần thiết (khác tiền tố), nhưng đặt
 # trước cho dễ đọc: chủ đề là khung phân loại, bài viết nằm trong đó.
 
+
 @router.get(
     "/categories",
     response_model=list[CategoryResponse],
@@ -54,8 +55,12 @@ def list_categories(
 ) -> list[CategoryResponse]:
     return [
         CategoryResponse(
-            id=c.id, slug=c.slug, name=c.name,
-            parent_id=c.parent_id, sort_order=c.sort_order, article_count=count,
+            id=c.id,
+            slug=c.slug,
+            name=c.name,
+            parent_id=c.parent_id,
+            sort_order=c.sort_order,
+            article_count=count,
         )
         for c, count in service.list(current_user)
     ]
@@ -74,12 +79,17 @@ def create_category(
 ) -> CategoryResponse:
     c = service.create(current_user, data)
     return CategoryResponse(
-        id=c.id, slug=c.slug, name=c.name,
-        parent_id=c.parent_id, sort_order=c.sort_order, article_count=0,
+        id=c.id,
+        slug=c.slug,
+        name=c.name,
+        parent_id=c.parent_id,
+        sort_order=c.sort_order,
+        article_count=0,
     )
 
 
 # ── Bài viết ──────────────────────────────────────────────────────────
+
 
 @router.get(
     "/articles",

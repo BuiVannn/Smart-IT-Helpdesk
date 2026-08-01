@@ -70,7 +70,7 @@ class TicketAccessPolicy:
     @staticmethod
     def can_rate(user, ticket) -> bool:
         """Chỉ người tạo ticket được đánh giá, và chỉ khi đã xử lý xong (BR-07)."""
-        return (
-            ticket.requester_id == user.id
-            and ticket.status in (TicketStatus.RESOLVED, TicketStatus.CLOSED)
+        return ticket.requester_id == user.id and ticket.status in (
+            TicketStatus.RESOLVED,
+            TicketStatus.CLOSED,
         )

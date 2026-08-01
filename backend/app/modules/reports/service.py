@@ -121,18 +121,24 @@ class AiAccuracyService:
         )
 
     def _load_totals(self, report: AiAccuracyReport) -> None:
-        row = self.session.execute(
-            select(
-                func.count().label("total"),
-                func.count().filter(AiClassification.was_applied.is_(True)).label("applied"),
-                func.count().filter(AiClassification.was_accepted.is_(True)).label("accepted"),
-                func.count().filter(AiClassification.was_accepted.is_(False)).label("corrected"),
-                func.avg(AiClassification.latency_ms).label("latency"),
-                func.avg(AiClassification.confidence).label("confidence"),
+        row = (
+            self.session.execute(
+                select(
+                    func.count().label("total"),
+                    func.count().filter(AiClassification.was_applied.is_(True)).label("applied"),
+                    func.count().filter(AiClassification.was_accepted.is_(True)).label("accepted"),
+                    func.count()
+                    .filter(AiClassification.was_accepted.is_(False))
+                    .label("corrected"),
+                    func.avg(AiClassification.latency_ms).label("latency"),
+                    func.avg(AiClassification.confidence).label("confidence"),
+                )
+                .select_from(AiClassification)
+                .where(*self._window(report))
             )
-            .select_from(AiClassification)
-            .where(*self._window(report))
-        ).mappings().one()
+            .mappings()
+            .one()
+        )
 
         report.total_runs = int(row["total"])
         report.applied = int(row["applied"])
@@ -198,8 +204,13 @@ class AiAccuracyService:
             .order_by(func.count().desc())
         ).all()
         return [
-            Bucket(key=slug, label=name, applied=int(applied),
-                   accepted=int(accepted), corrected=int(corrected))
+            Bucket(
+                key=slug,
+                label=name,
+                applied=int(applied),
+                accepted=int(accepted),
+                corrected=int(corrected),
+            )
             for slug, name, applied, accepted, corrected in rows
         ]
 
@@ -218,8 +229,13 @@ class AiAccuracyService:
             .order_by(week)
         ).all()
         return [
-            Bucket(key=start.date().isoformat(), label=f"Tuần {start:%d/%m}",
-                   applied=int(applied), accepted=int(accepted), corrected=int(corrected))
+            Bucket(
+                key=start.date().isoformat(),
+                label=f"Tuần {start:%d/%m}",
+                applied=int(applied),
+                accepted=int(accepted),
+                corrected=int(corrected),
+            )
             for start, applied, accepted, corrected in rows
         ]
 

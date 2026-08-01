@@ -71,11 +71,11 @@ class TicketRepository:
     def get(self, ticket_id: UUID, visible: ColumnElement[bool]) -> Ticket | None:
         stmt = self._with_relations(
             select(Ticket).where(Ticket.id == ticket_id, visible)
-        # ★ populate_existing là BẮT BUỘC ở đây. Session dùng
-        # expire_on_commit=False, nên một đối tượng đã nằm trong identity map
-        # sẽ được trả về nguyên trạng và các quan hệ đã nạp KHÔNG được đọc lại.
-        # Hậu quả: vừa giao việc xong, đọc lại vẫn thấy `assignee = None` —
-        # ghi đúng xuống DB nhưng trả sai cho client. Test đã bắt được lỗi này.
+            # ★ populate_existing là BẮT BUỘC ở đây. Session dùng
+            # expire_on_commit=False, nên một đối tượng đã nằm trong identity map
+            # sẽ được trả về nguyên trạng và các quan hệ đã nạp KHÔNG được đọc lại.
+            # Hậu quả: vừa giao việc xong, đọc lại vẫn thấy `assignee = None` —
+            # ghi đúng xuống DB nhưng trả sai cho client. Test đã bắt được lỗi này.
         ).execution_options(populate_existing=True)
         return self.session.execute(stmt).scalar_one_or_none()
 
@@ -111,19 +111,21 @@ class TicketRepository:
         if q and q.strip():
             stmt = stmt.where(SEARCH_CONDITION).params(q=q.strip())
 
-        total = self.session.execute(
-            select(func.count()).select_from(stmt.subquery())
-        ).scalar_one()
+        total = self.session.execute(select(func.count()).select_from(stmt.subquery())).scalar_one()
 
         column = SORTABLE.get(sort_by, Ticket.created_at)
         ordering = column.desc() if sort_order == "desc" else column.asc()
 
-        rows = self.session.execute(
-            self._with_relations(stmt)
-            .order_by(ordering, Ticket.id.desc())   # id để thứ tự ổn định khi trùng khoá sắp xếp
-            .offset(params.offset)
-            .limit(params.limit)
-        ).scalars().all()
+        rows = (
+            self.session.execute(
+                self._with_relations(stmt)
+                .order_by(ordering, Ticket.id.desc())  # id để thứ tự ổn định khi trùng khoá sắp xếp
+                .offset(params.offset)
+                .limit(params.limit)
+            )
+            .scalars()
+            .all()
+        )
 
         return list(rows), total
 
@@ -142,27 +144,36 @@ class TicketRepository:
         remaining = func.extract("epoch", Ticket.sla_resolution_due_at - now)
         total = func.extract("epoch", Ticket.sla_resolution_due_at - Ticket.created_at)
 
-        row = self.session.execute(
-            select(
-                func.count().filter(
-                    Ticket.assignee_id.is_(None), Ticket.status == TicketStatus.NEW
-                ).label("unassigned"),
-                func.count().filter(*mine_open).label("assigned_to_me"),
-                func.count().filter(
-                    Ticket.assignee_id == agent_id,
-                    Ticket.status == TicketStatus.IN_PROGRESS,
-                ).label("in_progress"),
-                func.count().filter(
-                    *mine_open, has_due,
-                    Ticket.sla_resolution_due_at > now,
-                    total > 0,
-                    remaining <= AT_RISK_RATIO * total,
-                ).label("at_risk"),
-                func.count().filter(
-                    *mine_open, has_due, Ticket.sla_resolution_due_at <= now
-                ).label("breached"),
-            ).select_from(Ticket)
-        ).mappings().one()
+        row = (
+            self.session.execute(
+                select(
+                    func.count()
+                    .filter(Ticket.assignee_id.is_(None), Ticket.status == TicketStatus.NEW)
+                    .label("unassigned"),
+                    func.count().filter(*mine_open).label("assigned_to_me"),
+                    func.count()
+                    .filter(
+                        Ticket.assignee_id == agent_id,
+                        Ticket.status == TicketStatus.IN_PROGRESS,
+                    )
+                    .label("in_progress"),
+                    func.count()
+                    .filter(
+                        *mine_open,
+                        has_due,
+                        Ticket.sla_resolution_due_at > now,
+                        total > 0,
+                        remaining <= AT_RISK_RATIO * total,
+                    )
+                    .label("at_risk"),
+                    func.count()
+                    .filter(*mine_open, has_due, Ticket.sla_resolution_due_at <= now)
+                    .label("breached"),
+                ).select_from(Ticket)
+            )
+            .mappings()
+            .one()
+        )
         return {k: int(v) for k, v in row.items()}
 
 
@@ -175,9 +186,7 @@ class CommentRepository:
         self.session.flush()
         return comment
 
-    def list_for_ticket(
-        self, ticket_id: UUID, *, include_internal: bool
-    ) -> list[TicketComment]:
+    def list_for_ticket(self, ticket_id: UUID, *, include_internal: bool) -> list[TicketComment]:
         """Lọc bình luận nội bộ NGAY TRONG SQL.
 
         Lấy hết rồi lọc trong Python là cách rò rỉ kinh điển: chỉ cần một

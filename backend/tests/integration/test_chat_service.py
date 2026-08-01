@@ -75,16 +75,18 @@ def make_service(db, llm, *, threshold: float) -> ChatService:
 
 
 async def collect(service, session_id, user_id, question):
-    return [e async for e in service.answer(
-        session_id=session_id, user_id=user_id, question=question
-    )]
+    return [
+        e async for e in service.answer(session_id=session_id, user_id=user_id, question=question)
+    ]
 
 
 class TestCoNguCanh:
     async def test_thu_tu_su_kien_dung(self, db, chat_session, seeded, llm):
         events = await collect(
             make_service(db, llm, threshold=0.1),
-            chat_session.id, seeded.id, "Làm sao đổi mật khẩu email?",
+            chat_session.id,
+            seeded.id,
+            "Làm sao đổi mật khẩu email?",
         )
         types = [e.type for e in events]
         assert types[0] == "citations", "trích dẫn phải gửi TRƯỚC nội dung"
@@ -94,7 +96,10 @@ class TestCoNguCanh:
     async def test_trich_dan_gui_truoc_noi_dung(self, db, chat_session, seeded, llm):
         """Người dùng thấy ngay nguồn tham chiếu trong khi câu trả lời đang sinh."""
         events = await collect(
-            make_service(db, llm, threshold=0.1), chat_session.id, seeded.id, "wifi",
+            make_service(db, llm, threshold=0.1),
+            chat_session.id,
+            seeded.id,
+            "wifi",
         )
         citations = events[0].data["citations"]
         assert citations
@@ -103,20 +108,23 @@ class TestCoNguCanh:
 
     async def test_luu_tin_nhan_va_trich_dan(self, db, chat_session, seeded, llm):
         await collect(
-            make_service(db, llm, threshold=0.1), chat_session.id, seeded.id, "wifi",
+            make_service(db, llm, threshold=0.1),
+            chat_session.id,
+            seeded.id,
+            "wifi",
         )
         db.flush()
-        messages = db.execute(
-            select(ChatMessage).where(ChatMessage.session_id == chat_session.id)
-        ).scalars().all()
+        messages = (
+            db.execute(select(ChatMessage).where(ChatMessage.session_id == chat_session.id))
+            .scalars()
+            .all()
+        )
         assert len(messages) == 2  # câu hỏi + câu trả lời
         assert db.execute(select(func.count()).select_from(ChatCitation)).scalar_one() > 0
 
 
 class TestKhongCoNguCanh:
-    async def test_tu_choi_va_KHONG_goi_llm_sinh_cau_tra_loi(
-        self, db, chat_session, seeded, llm
-    ):
+    async def test_tu_choi_va_KHONG_goi_llm_sinh_cau_tra_loi(self, db, chat_session, seeded, llm):
         """★ TEST QUAN TRỌNG NHẤT CỦA CẢ MODULE.
 
         Không có tài liệu liên quan ⇒ TUYỆT ĐỐI không gọi stream(). Model
@@ -125,8 +133,10 @@ class TestKhongCoNguCanh:
         """
         before = llm.stream_count
         events = await collect(
-            make_service(db, llm, threshold=0.99),   # ngưỡng cao ⇒ không chunk nào đạt
-            chat_session.id, seeded.id, "Lương tháng này khi nào có?",
+            make_service(db, llm, threshold=0.99),  # ngưỡng cao ⇒ không chunk nào đạt
+            chat_session.id,
+            seeded.id,
+            "Lương tháng này khi nào có?",
         )
         assert llm.stream_count == before, "ĐÃ GỌI stream() dù không có tài liệu!"
         assert events[-1].data["noContextFound"] is True
@@ -134,7 +144,10 @@ class TestKhongCoNguCanh:
 
     async def test_cau_tra_loi_tu_choi_goi_y_tao_ticket(self, db, chat_session, seeded, llm):
         events = await collect(
-            make_service(db, llm, threshold=0.99), chat_session.id, seeded.id, "câu hỏi lạ",
+            make_service(db, llm, threshold=0.99),
+            chat_session.id,
+            seeded.id,
+            "câu hỏi lạ",
         )
         answer = next(e for e in events if e.type == "token").data["delta"]
         assert "chưa tìm thấy" in answer.lower()
@@ -145,15 +158,22 @@ class TestKhongCoNguCanh:
     ):
         """Dữ liệu cho US-27 — tìm chủ đề còn thiếu trong kho tài liệu."""
         await collect(
-            make_service(db, llm, threshold=0.99), chat_session.id, seeded.id, "câu hỏi lạ",
+            make_service(db, llm, threshold=0.99),
+            chat_session.id,
+            seeded.id,
+            "câu hỏi lạ",
         )
         db.flush()
-        messages = db.execute(
-            select(ChatMessage).where(
-                ChatMessage.session_id == chat_session.id,
-                ChatMessage.no_context_found.is_(True),
+        messages = (
+            db.execute(
+                select(ChatMessage).where(
+                    ChatMessage.session_id == chat_session.id,
+                    ChatMessage.no_context_found.is_(True),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(messages) == 1
 
 
@@ -162,7 +182,9 @@ class TestXuLyLoi:
         """Người dùng cần biết 'thử lại sau', không cần biết 'connection reset'."""
         events = await collect(
             make_service(db, FakeLlmClient(should_fail=True), threshold=0.1),
-            chat_session.id, seeded.id, "wifi",
+            chat_session.id,
+            seeded.id,
+            "wifi",
         )
         assert events[-1].type == "error"
         assert events[-1].data["canCreateTicket"] is True
@@ -170,18 +192,22 @@ class TestXuLyLoi:
 
     async def test_cau_hoi_rong_bi_tu_choi(self, db, chat_session, seeded, llm):
         events = await collect(
-            make_service(db, llm, threshold=0.1), chat_session.id, seeded.id, "   ",
+            make_service(db, llm, threshold=0.1),
+            chat_session.id,
+            seeded.id,
+            "   ",
         )
         assert events[0].type == "error"
         assert events[0].data["code"] == "VALIDATION_ERROR"
 
-    async def test_khong_truy_cap_duoc_phien_cua_nguoi_khac(
-        self, db, chat_session, seeded, llm
-    ):
+    async def test_khong_truy_cap_duoc_phien_cua_nguoi_khac(self, db, chat_session, seeded, llm):
         """Trả NotFound (404) thay vì Forbidden (403) — không tiết lộ sự tồn tại."""
         with pytest.raises(NotFoundError):
             await collect(
-                make_service(db, llm, threshold=0.1), chat_session.id, uuid4(), "wifi",
+                make_service(db, llm, threshold=0.1),
+                chat_session.id,
+                uuid4(),
+                "wifi",
             )
 
 

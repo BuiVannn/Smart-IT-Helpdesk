@@ -67,10 +67,15 @@ def test_hai_ban_ghi_tao_cach_nhau_co_dau_thoi_gian_khac_nhau(
 
     user = make_user(role=UserRole.EMPLOYEE)
     service = TicketService(db)
-    ticket = service.create(user, CreateTicketRequest.model_validate({
-        "title": "Ticket kiểm tra dấu thời gian",
-        "description": "Nội dung đủ dài để qua ràng buộc CHECK của database.",
-    }))
+    ticket = service.create(
+        user,
+        CreateTicketRequest.model_validate(
+            {
+                "title": "Ticket kiểm tra dấu thời gian",
+                "description": "Nội dung đủ dài để qua ràng buộc CHECK của database.",
+            }
+        ),
+    )
     time.sleep(0.01)
 
     event = db.execute(
@@ -94,9 +99,16 @@ def test_hai_ban_ghi_tao_cach_nhau_co_dau_thoi_gian_khac_nhau(
 @pytest.mark.parametrize(
     "table",
     [
-        "ai_classifications", "article_chunks", "chat_feedback", "chat_messages",
-        "chat_sessions", "idempotency_keys", "notifications", "ticket_attachments",
-        "ticket_comments", "ticket_events",
+        "ai_classifications",
+        "article_chunks",
+        "chat_feedback",
+        "chat_messages",
+        "chat_sessions",
+        "idempotency_keys",
+        "notifications",
+        "ticket_attachments",
+        "ticket_comments",
+        "ticket_events",
     ],
 )
 def test_muoi_bang_tung_hong_nay_da_dung_now(db, table):

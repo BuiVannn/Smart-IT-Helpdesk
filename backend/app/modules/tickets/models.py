@@ -71,12 +71,8 @@ class SlaPolicy(Base, UUIDPrimaryKeyMixin):
     business_hours_only: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     __table_args__ = (
-        CheckConstraint(
-            "first_response_minutes > 0 AND resolution_minutes > 0", name="positive"
-        ),
-        CheckConstraint(
-            "resolution_minutes >= first_response_minutes", name="order"
-        ),
+        CheckConstraint("first_response_minutes > 0 AND resolution_minutes > 0", name="positive"),
+        CheckConstraint("resolution_minutes >= first_response_minutes", name="order"),
     )
 
 
@@ -193,9 +189,7 @@ class TicketComment(Base, UUIDPrimaryKeyMixin):
     ticket: Mapped[Ticket] = relationship(back_populates="comments")
     author = relationship("User")
 
-    __table_args__ = (
-        CheckConstraint("char_length(body) BETWEEN 1 AND 5000", name="body_len"),
-    )
+    __table_args__ = (CheckConstraint("char_length(body) BETWEEN 1 AND 5000", name="body_len"),)
 
     def is_visible_to(self, user) -> bool:
         """Bình luận nội bộ chỉ IT Agent và Admin thấy (BR-10)."""
@@ -228,9 +222,7 @@ class TicketAttachment(Base, UUIDPrimaryKeyMixin):
 
     ticket: Mapped[Ticket] = relationship(back_populates="attachments")
 
-    __table_args__ = (
-        CheckConstraint("size_bytes > 0 AND size_bytes <= 10485760", name="size"),
-    )
+    __table_args__ = (CheckConstraint("size_bytes > 0 AND size_bytes <= 10485760", name="size"),)
 
 
 class TicketEvent(Base, UUIDPrimaryKeyMixin):
@@ -257,9 +249,7 @@ class TicketEvent(Base, UUIDPrimaryKeyMixin):
     field_name: Mapped[str | None] = mapped_column(String(50))
     old_value: Mapped[str | None] = mapped_column(Text)
     new_value: Mapped[str | None] = mapped_column(Text)
-    event_metadata: Mapped[dict] = mapped_column(
-        "metadata", JSONB, default=dict, nullable=False
-    )
+    event_metadata: Mapped[dict] = mapped_column("metadata", JSONB, default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

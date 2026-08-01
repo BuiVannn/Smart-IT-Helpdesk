@@ -7,6 +7,7 @@ thực tế của người dùng Việt.
 Revision ID: 0004
 Revises: 0003
 """
+
 from collections.abc import Sequence
 
 from alembic import op

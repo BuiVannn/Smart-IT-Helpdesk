@@ -29,15 +29,11 @@ class UserRepository:
 
     def add(self, user: User) -> User:
         self.session.add(user)
-        self.session.flush()   # để lấy id, nhưng KHÔNG commit
+        self.session.flush()  # để lấy id, nhưng KHÔNG commit
         return user
 
     def get_by_id(self, user_id: UUID) -> User | None:
-        stmt = (
-            select(User)
-            .options(selectinload(User.department))
-            .where(User.id == user_id)
-        )
+        stmt = select(User).options(selectinload(User.department)).where(User.id == user_id)
         return self.session.execute(stmt).scalar_one_or_none()
 
     def get_by_email(self, email: str) -> User | None:
@@ -67,27 +63,34 @@ class UserRepository:
             pattern = f"%{q}%"
             stmt = stmt.where(User.full_name.ilike(pattern) | User.email.ilike(pattern))
 
-        total = self.session.execute(
-            select(func.count()).select_from(stmt.subquery())
-        ).scalar_one()
+        total = self.session.execute(select(func.count()).select_from(stmt.subquery())).scalar_one()
 
-        rows = self.session.execute(
-            stmt.order_by(User.created_at.desc()).offset(params.offset).limit(params.limit)
-        ).scalars().all()
+        rows = (
+            self.session.execute(
+                stmt.order_by(User.created_at.desc()).offset(params.offset).limit(params.limit)
+            )
+            .scalars()
+            .all()
+        )
 
         return list(rows), total
 
     def list_active_agents(self) -> list[User]:
         """IT Agent đang hoạt động — dùng cho gợi ý người xử lý (US-20)."""
-        stmt = select(User).where(
-            User.role == UserRole.IT_AGENT, User.is_active.is_(True)
-        ).order_by(User.full_name)
+        stmt = (
+            select(User)
+            .where(User.role == UserRole.IT_AGENT, User.is_active.is_(True))
+            .order_by(User.full_name)
+        )
         return list(self.session.execute(stmt).scalars().all())
 
     def email_exists(self, email: str) -> bool:
-        return self.session.execute(
-            select(func.count()).select_from(User).where(User.email == email)
-        ).scalar_one() > 0
+        return (
+            self.session.execute(
+                select(func.count()).select_from(User).where(User.email == email)
+            ).scalar_one()
+            > 0
+        )
 
 
 class DepartmentRepository:

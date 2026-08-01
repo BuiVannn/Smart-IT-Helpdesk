@@ -54,9 +54,9 @@ class TestSoanThao:
     def test_slug_trung_thi_them_hau_to(self, admin_client):
         first = create_article(admin_client)
         second = create_article(admin_client)
-        assert second["slug"] == f"{first['slug']}-2", (
-            "trùng tiêu đề là chuyện bình thường, không được ném lỗi khoá trùng"
-        )
+        assert (
+            second["slug"] == f"{first['slug']}-2"
+        ), "trùng tiêu đề là chuyện bình thường, không được ném lỗi khoá trùng"
 
     def test_nhan_vien_KHONG_soan_duoc(self, client, make_user, login):
         login(make_user(role=UserRole.EMPLOYEE))
@@ -82,7 +82,8 @@ class TestSoanThao:
     def test_sai_version_thi_409(self, admin_client):
         article = create_article(admin_client)
         response = admin_client.patch(
-            f"{BASE}/articles/{article['id']}", json={"summary": "x", "version": 99},
+            f"{BASE}/articles/{article['id']}",
+            json={"summary": "x", "version": 99},
         )
         assert response.status_code == 409
         assert response.json()["error"]["details"]["currentVersion"] == 1
@@ -110,7 +111,8 @@ class TestXuatBan:
 
         called: list[str] = []
         monkeypatch.setattr(
-            tasks.index_article, "apply_async",
+            tasks.index_article,
+            "apply_async",
             lambda args, **kw: called.append(args[0]),
         )
 
@@ -128,7 +130,8 @@ class TestXuatBan:
 
         called: list[str] = []
         monkeypatch.setattr(
-            tasks.index_article, "apply_async",
+            tasks.index_article,
+            "apply_async",
             lambda args, **kw: called.append(args[0]),
         )
         admin_client.patch(
@@ -137,9 +140,7 @@ class TestXuatBan:
         )
         assert called == [article["id"]]
 
-    def test_go_xuat_ban_cung_kich_hoat_index_de_xoa_chunk(
-        self, admin_client, monkeypatch
-    ):
+    def test_go_xuat_ban_cung_kich_hoat_index_de_xoa_chunk(self, admin_client, monkeypatch):
         from app.modules.knowledge import tasks
 
         article = create_article(admin_client)
@@ -147,7 +148,8 @@ class TestXuatBan:
 
         called: list[str] = []
         monkeypatch.setattr(
-            tasks.index_article, "apply_async",
+            tasks.index_article,
+            "apply_async",
             lambda args, **kw: called.append(args[0]),
         )
         response = admin_client.post(f"{BASE}/articles/{article['id']}/unpublish")
@@ -172,9 +174,7 @@ class TestXuatBan:
     def test_xuat_ban_hai_lan_tra_409(self, admin_client):
         article = create_article(admin_client)
         admin_client.post(f"{BASE}/articles/{article['id']}/publish")
-        assert admin_client.post(
-            f"{BASE}/articles/{article['id']}/publish"
-        ).status_code == 409
+        assert admin_client.post(f"{BASE}/articles/{article['id']}/publish").status_code == 409
 
     def test_canh_bao_chi_muc_cu(self, admin_client):
         """Người soạn thảo cần thấy chatbot đang dùng bản nào — sửa bài xong
@@ -189,9 +189,7 @@ class TestXuatBan:
 class TestQuyenXem:
     """BR-11 — bản nháp không lọt ra ngoài."""
 
-    def test_nhan_vien_KHONG_thay_ban_nhap_trong_danh_sach(
-        self, client, make_user, login
-    ):
+    def test_nhan_vien_KHONG_thay_ban_nhap_trong_danh_sach(self, client, make_user, login):
         login(make_user(role=UserRole.ADMIN))
         create_article(client)
 
@@ -231,9 +229,9 @@ class TestTimKiem:
         admin_client.post(f"{BASE}/articles/{article['id']}/publish")
 
         body = admin_client.get(f"{BASE}/articles", params={"q": "may in mang"}).json()
-        assert article["slug"] in [a["slug"] for a in body["data"]], (
-            "người Việt gõ không dấu phải tìm ra bài có dấu"
-        )
+        assert article["slug"] in [
+            a["slug"] for a in body["data"]
+        ], "người Việt gõ không dấu phải tìm ra bài có dấu"
 
     def test_dem_luot_xem(self, admin_client):
         article = create_article(admin_client)
@@ -260,12 +258,10 @@ class TestTimKiem:
         assert article["slug"] in [a["slug"] for a in body]
 
     def test_tu_khoa_qua_ngan_bi_tu_choi(self, admin_client):
-        assert admin_client.get(
-            f"{BASE}/articles/suggest", params={"q": "ab"}
-        ).status_code == 422
+        assert admin_client.get(f"{BASE}/articles/suggest", params={"q": "ab"}).status_code == 422
 
     def test_duong_dan_suggest_khong_bi_hieu_thanh_slug(self, admin_client):
-        """"/articles/suggest" phải khai báo TRƯỚC "/articles/{slug}"."""
+        """ "/articles/suggest" phải khai báo TRƯỚC "/articles/{slug}"."""
         response = admin_client.get(f"{BASE}/articles/suggest", params={"q": "máy in"})
         assert response.status_code == 200
         assert isinstance(response.json(), list)
@@ -300,6 +296,4 @@ class TestChuDe:
 
     def test_nhan_vien_khong_tao_duoc_chu_de(self, client, make_user, login):
         login(make_user(role=UserRole.EMPLOYEE))
-        assert client.post(
-            f"{BASE}/categories", json={"name": "Chủ đề lậu"}
-        ).status_code == 403
+        assert client.post(f"{BASE}/categories", json={"name": "Chủ đề lậu"}).status_code == 403

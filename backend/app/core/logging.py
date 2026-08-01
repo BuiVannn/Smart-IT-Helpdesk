@@ -10,9 +10,18 @@ request_id_ctx: ContextVar[str] = ContextVar("request_id", default="-")
 user_id_ctx: ContextVar[str] = ContextVar("user_id", default="-")
 
 SENSITIVE_KEYS = {
-    "password", "current_password", "new_password", "token", "access_token",
-    "refresh_token", "authorization", "api_key", "llm_api_key", "secret",
-    "password_hash", "token_hash",
+    "password",
+    "current_password",
+    "new_password",
+    "token",
+    "access_token",
+    "refresh_token",
+    "authorization",
+    "api_key",
+    "llm_api_key",
+    "secret",
+    "password_hash",
+    "token_hash",
 }
 MASK = "***"
 
@@ -20,8 +29,9 @@ MASK = "***"
 def mask_sensitive(data: Any) -> Any:
     """Che đệ quy mọi trường nhạy cảm trước khi ghi log."""
     if isinstance(data, dict):
-        return {k: (MASK if k.lower() in SENSITIVE_KEYS else mask_sensitive(v))
-                for k, v in data.items()}
+        return {
+            k: (MASK if k.lower() in SENSITIVE_KEYS else mask_sensitive(v)) for k, v in data.items()
+        }
     if isinstance(data, list):
         return [mask_sensitive(x) for x in data]
     return data

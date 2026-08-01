@@ -35,7 +35,8 @@ class UserService:
         self.db.commit()
         self.db.refresh(user)
 
-        logger.info("cập nhật hồ sơ", extra={"extra_fields": {
-            "user_id": str(user.id), "fields": sorted(changes)
-        }})
+        logger.info(
+            "cập nhật hồ sơ",
+            extra={"extra_fields": {"user_id": str(user.id), "fields": sorted(changes)}},
+        )
         return user

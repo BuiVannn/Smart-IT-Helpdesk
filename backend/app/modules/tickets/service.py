@@ -97,9 +97,16 @@ class TicketService:
 
         self._enqueue_classification(ticket)
 
-        logger.info("tạo ticket", extra={"extra_fields": {
-            "ticket_id": str(ticket.id), "code": ticket.code, "priority": priority
-        }})
+        logger.info(
+            "tạo ticket",
+            extra={
+                "extra_fields": {
+                    "ticket_id": str(ticket.id),
+                    "code": ticket.code,
+                    "priority": priority,
+                }
+            },
+        )
         return self._load(user, ticket.id)
 
     def _enqueue_classification(self, ticket: Ticket) -> None:
@@ -186,9 +193,7 @@ class TicketService:
         self._check_version(ticket, data.version)
 
         if not TicketAccessPolicy.can_edit(user, ticket):
-            raise ForbiddenError(
-                "Chỉ sửa được ticket của mình khi còn ở trạng thái NEW"
-            )
+            raise ForbiddenError("Chỉ sửa được ticket của mình khi còn ở trạng thái NEW")
 
         changed = False
         if data.title is not None and data.title.strip() != ticket.title:
@@ -199,7 +204,9 @@ class TicketService:
             changed = True
         if data.category_id is not None and data.category_id != ticket.category_id:
             self._record(
-                ticket, user, EventType.RECLASSIFIED,
+                ticket,
+                user,
+                EventType.RECLASSIFIED,
                 field_name="category_id",
                 old_value=str(ticket.category_id or ""),
                 new_value=str(data.category_id),
@@ -209,9 +216,12 @@ class TicketService:
             changed = True
         if data.priority is not None and data.priority != ticket.priority:
             self._record(
-                ticket, user, EventType.PRIORITY_CHANGED,
+                ticket,
+                user,
+                EventType.PRIORITY_CHANGED,
                 field_name="priority",
-                old_value=ticket.priority, new_value=data.priority,
+                old_value=ticket.priority,
+                new_value=data.priority,
             )
             ticket.priority = data.priority
             # Hạn SLA được tính lại theo mức ưu tiên MỚI, nhưng vẫn tính từ
@@ -277,9 +287,7 @@ class TicketService:
                 f"Không giao việc được khi ticket đang ở trạng thái {ticket.status}",
                 details={
                     "currentStatus": ticket.status,
-                    "allowedStatuses": TicketStateMachine.allowed_next(
-                        ticket.status, user.role
-                    ),
+                    "allowedStatuses": TicketStateMachine.allowed_next(ticket.status, user.role),
                 },
             )
 
@@ -290,12 +298,18 @@ class TicketService:
 
         if old_status != ticket.status:
             self._record(
-                ticket, user, EventType.STATUS_CHANGED,
-                field_name="status", old_value=old_status, new_value=ticket.status,
+                ticket,
+                user,
+                EventType.STATUS_CHANGED,
+                field_name="status",
+                old_value=old_status,
+                new_value=ticket.status,
             )
 
         self._record(
-            ticket, user, EventType.ASSIGNED,
+            ticket,
+            user,
+            EventType.ASSIGNED,
             field_name="assignee_id",
             old_value=str(old_assignee) if old_assignee else None,
             new_value=str(assignee_id),
@@ -306,9 +320,7 @@ class TicketService:
 
     # ── US-14, US-18: Chuyển trạng thái / đóng / huỷ ──────────────────
 
-    def change_status(
-        self, user: User, ticket_id: UUID, data: ChangeStatusRequest
-    ) -> Ticket:
+    def change_status(self, user: User, ticket_id: UUID, data: ChangeStatusRequest) -> Ticket:
         ticket = self._load(user, ticket_id)
         self._check_version(ticket, data.version)
 
@@ -349,15 +361,22 @@ class TicketService:
         self._mark_first_response(ticket, user, now)
 
         self._record(
-            ticket, user, EventType.STATUS_CHANGED,
-            field_name="status", old_value=old_status, new_value=data.status,
+            ticket,
+            user,
+            EventType.STATUS_CHANGED,
+            field_name="status",
+            old_value=old_status,
+            new_value=data.status,
         )
         self._bump(ticket)
         self.db.commit()
 
-        logger.info("đổi trạng thái ticket", extra={"extra_fields": {
-            "ticket_id": str(ticket.id), "from": old_status, "to": data.status
-        }})
+        logger.info(
+            "đổi trạng thái ticket",
+            extra={
+                "extra_fields": {"ticket_id": str(ticket.id), "from": old_status, "to": data.status}
+            },
+        )
         return self._load(user, ticket_id)
 
     # ── US-15: Bình luận ──────────────────────────────────────────────
@@ -389,7 +408,9 @@ class TicketService:
             self._mark_first_response(ticket, user, datetime.now(UTC))
 
         self._record(
-            ticket, user, EventType.COMMENTED,
+            ticket,
+            user,
+            EventType.COMMENTED,
             event_metadata={"commentId": str(comment.id), "isInternal": internal},
         )
         self.db.commit()
@@ -397,7 +418,7 @@ class TicketService:
         return comment
 
     def list_comments(self, user: User, ticket_id: UUID) -> list[TicketComment]:
-        self._load(user, ticket_id)   # kiểm tra quyền xem ticket trước
+        self._load(user, ticket_id)  # kiểm tra quyền xem ticket trước
         return self.comments.list_for_ticket(
             ticket_id,
             include_internal=TicketAccessPolicy.can_see_internal_comments(user),
@@ -432,9 +453,7 @@ class TicketService:
         ticket. Đọc-rồi-ghi mà không khoá ở đây chính là ghi đè im lặng lên
         quyết định của con người — thứ mà BR-13 cấm.
         """
-        ticket = self.db.get(
-            Ticket, ticket_id, with_for_update=True, populate_existing=True
-        )
+        ticket = self.db.get(Ticket, ticket_id, with_for_update=True, populate_existing=True)
         if ticket is None:
             return AiStatus.FAILED
 
@@ -459,7 +478,9 @@ class TicketService:
         self._bump(ticket)
 
         self._record(
-            ticket, None, EventType.AI_CLASSIFIED,
+            ticket,
+            None,
+            EventType.AI_CLASSIFIED,
             actor_type=ActorType.AI,
             field_name="category_id",
             new_value=str(category_id),
@@ -471,9 +492,13 @@ class TicketService:
         )
         if old_priority != priority:
             self._record(
-                ticket, None, EventType.PRIORITY_CHANGED,
+                ticket,
+                None,
+                EventType.PRIORITY_CHANGED,
                 actor_type=ActorType.AI,
-                field_name="priority", old_value=old_priority, new_value=priority,
+                field_name="priority",
+                old_value=old_priority,
+                new_value=priority,
             )
         self.db.flush()
         return AiStatus.APPLIED
@@ -484,17 +509,13 @@ class TicketService:
         Ticket giữ nguyên category/priority và nằm lại hàng chờ phân loại thủ
         công — đây là kết quả chấp nhận được, không phải sự cố.
         """
-        ticket = self.db.get(
-            Ticket, ticket_id, with_for_update=True, populate_existing=True
-        )
+        ticket = self.db.get(Ticket, ticket_id, with_for_update=True, populate_existing=True)
         if ticket is None or ticket.ai_status != AiStatus.PENDING:
             return
         ticket.ai_status = status
         self.db.flush()
 
-    def latest_ai_classification(
-        self, user: User, ticket_id: UUID
-    ) -> AiClassification | None:
+    def latest_ai_classification(self, user: User, ticket_id: UUID) -> AiClassification | None:
         """Gợi ý gần nhất của AI cho ticket. `_load` trước để kiểm tra quyền xem."""
         self._load(user, ticket_id)
         return self.db.execute(
@@ -519,9 +540,7 @@ class TicketService:
 
     # ── US-21: Agent sửa lại phân loại của AI ─────────────────────────
 
-    def _record_ai_correction(
-        self, ticket: Ticket, corrected_category_id: UUID | None
-    ) -> None:
+    def _record_ai_correction(self, ticket: Ticket, corrected_category_id: UUID | None) -> None:
         """Đánh dấu bản ghi AI là bị sửa, để US-22 đo được độ chính xác thật.
 
         Chỉ tính khi AI THẬT SỰ đã áp dụng phân loại này (`was_applied`). AI
@@ -583,13 +602,17 @@ class TicketService:
         moment = now or datetime.now(UTC)
         cutoff = moment - timedelta(days=TicketStateMachine.AUTO_CLOSE_AFTER_DAYS)
 
-        tickets = list(self.db.execute(
-            select(Ticket).where(
-                Ticket.status == TicketStatus.RESOLVED,
-                Ticket.resolved_at.is_not(None),
-                Ticket.resolved_at <= cutoff,
+        tickets = list(
+            self.db.execute(
+                select(Ticket).where(
+                    Ticket.status == TicketStatus.RESOLVED,
+                    Ticket.resolved_at.is_not(None),
+                    Ticket.resolved_at <= cutoff,
+                )
             )
-        ).scalars().all())
+            .scalars()
+            .all()
+        )
 
         for ticket in tickets:
             self._settle_ai_accuracy(ticket)
@@ -597,9 +620,12 @@ class TicketService:
             ticket.closed_at = moment
             self._bump(ticket)
             self._record(
-                ticket, None, EventType.AUTO_CLOSED,
+                ticket,
+                None,
+                EventType.AUTO_CLOSED,
                 field_name="status",
-                old_value=TicketStatus.RESOLVED, new_value=TicketStatus.CLOSED,
+                old_value=TicketStatus.RESOLVED,
+                new_value=TicketStatus.CLOSED,
                 event_metadata={"afterDays": TicketStateMachine.AUTO_CLOSE_AFTER_DAYS},
             )
 
@@ -725,8 +751,7 @@ class TicketService:
         """Nạp ngày nghỉ MỘT lần cho mỗi request, không phải mỗi ticket."""
         if self._sla is None:
             holidays = frozenset(
-                row.holiday_date.date()
-                for row in self.db.execute(select(Holiday)).scalars().all()
+                row.holiday_date.date() for row in self.db.execute(select(Holiday)).scalars().all()
             )
             self._sla = SlaCalculator(BusinessCalendar(holidays=holidays))
         return self._sla

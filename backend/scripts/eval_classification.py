@@ -109,28 +109,29 @@ async def run(cases: list[dict], rules_only: bool) -> list[dict]:
 
             expected_priority = TicketPriority(case["expect_priority"])
             got_priority = suggestion.priority if suggestion else None
-            category_ok = bool(
-                suggestion and suggestion.category_slug == case["expect_category"]
-            )
+            category_ok = bool(suggestion and suggestion.category_slug == case["expect_category"])
 
-            results.append({
-                "id": case["id"],
-                "difficulty": case.get("difficulty", "clear"),
-                "expected_category": case["expect_category"],
-                "got_category": suggestion.category_slug if suggestion else None,
-                "category_ok": category_ok,
-                "expected_priority": expected_priority,
-                "got_priority": got_priority,
-                "priority_ok": got_priority == expected_priority,
-                "priority_gap": (
-                    abs(PRIORITY_RANK[got_priority] - PRIORITY_RANK[expected_priority])
-                    if got_priority else None
-                ),
-                "confidence": suggestion.confidence if suggestion else None,
-                "source": str(suggestion.source) if suggestion else None,
-                "seconds": elapsed,
-                "error": error,
-            })
+            results.append(
+                {
+                    "id": case["id"],
+                    "difficulty": case.get("difficulty", "clear"),
+                    "expected_category": case["expect_category"],
+                    "got_category": suggestion.category_slug if suggestion else None,
+                    "category_ok": category_ok,
+                    "expected_priority": expected_priority,
+                    "got_priority": got_priority,
+                    "priority_ok": got_priority == expected_priority,
+                    "priority_gap": (
+                        abs(PRIORITY_RANK[got_priority] - PRIORITY_RANK[expected_priority])
+                        if got_priority
+                        else None
+                    ),
+                    "confidence": suggestion.confidence if suggestion else None,
+                    "source": str(suggestion.source) if suggestion else None,
+                    "seconds": elapsed,
+                    "error": error,
+                }
+            )
 
     return results
 
@@ -224,10 +225,16 @@ def report(results: list[dict]) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Đánh giá chất lượng phân loại ticket")
-    parser.add_argument("--rules-only", action="store_true",
-                        help="Bỏ qua LLM, chỉ đo đường dự phòng đối chiếu từ khoá")
-    parser.add_argument("--difficulty", choices=["clear", "ambiguous", "tricky"],
-                        help="Chỉ chạy các ca thuộc một mức độ khó")
+    parser.add_argument(
+        "--rules-only",
+        action="store_true",
+        help="Bỏ qua LLM, chỉ đo đường dự phòng đối chiếu từ khoá",
+    )
+    parser.add_argument(
+        "--difficulty",
+        choices=["clear", "ambiguous", "tricky"],
+        help="Chỉ chạy các ca thuộc một mức độ khó",
+    )
     args = parser.parse_args()
 
     if not args.rules_only and settings.LLM_PROVIDER == "fake":

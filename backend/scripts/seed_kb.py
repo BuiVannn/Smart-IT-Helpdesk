@@ -105,16 +105,18 @@ def load_articles() -> list[dict[str, Any]]:
         if len(body) < 20:
             raise SystemExit(f"{path.name}: nội dung quá ngắn (tối thiểu 20 ký tự)")
 
-        articles.append({
-            "slug": slug,
-            "title": meta["title"],
-            "summary": meta.get("summary"),
-            "content_md": body,
-            "kb_category_slug": meta["category"],
-            "ticket_category_slug": meta.get("ticket_category"),
-            "tags": meta.get("tags", []),
-            "file": path.name,
-        })
+        articles.append(
+            {
+                "slug": slug,
+                "title": meta["title"],
+                "summary": meta.get("summary"),
+                "content_md": body,
+                "kb_category_slug": meta["category"],
+                "ticket_category_slug": meta.get("ticket_category"),
+                "tags": meta.get("tags", []),
+                "file": path.name,
+            }
+        )
 
     return articles
 
@@ -132,9 +134,11 @@ def seed(dry_run: bool = False) -> None:
     created = updated = skipped = 0
 
     with session_scope() as db:
-        author = db.execute(
-            select(User).where(User.role == UserRole.ADMIN).order_by(User.created_at)
-        ).scalars().first()
+        author = (
+            db.execute(select(User).where(User.role == UserRole.ADMIN).order_by(User.created_at))
+            .scalars()
+            .first()
+        )
         if author is None:
             raise SystemExit(
                 "Chưa có tài khoản ADMIN nào trong database.\n"
@@ -142,9 +146,7 @@ def seed(dry_run: bool = False) -> None:
             )
 
         kb_categories = {c.slug: c for c in db.execute(select(KbCategory)).scalars().all()}
-        ticket_categories = {
-            c.slug: c for c in db.execute(select(TicketCategory)).scalars().all()
-        }
+        ticket_categories = {c.slug: c for c in db.execute(select(TicketCategory)).scalars().all()}
 
         for item in articles:
             kb_cat = kb_categories.get(item["kb_category_slug"])
@@ -161,19 +163,21 @@ def seed(dry_run: bool = False) -> None:
             ).scalar_one_or_none()
 
             if existing is None:
-                db.add(KbArticle(
-                    slug=item["slug"],
-                    title=item["title"],
-                    summary=item["summary"],
-                    content_md=item["content_md"],
-                    status=ArticleStatus.PUBLISHED,
-                    kb_category_id=kb_cat.id,
-                    ticket_category_id=ticket_cat.id if ticket_cat else None,
-                    tags=item["tags"],
-                    author_id=author.id,
-                    published_at=now,
-                    indexed_at=None,   # buộc chạy lại chỉ mục RAG
-                ))
+                db.add(
+                    KbArticle(
+                        slug=item["slug"],
+                        title=item["title"],
+                        summary=item["summary"],
+                        content_md=item["content_md"],
+                        status=ArticleStatus.PUBLISHED,
+                        kb_category_id=kb_cat.id,
+                        ticket_category_id=ticket_cat.id if ticket_cat else None,
+                        tags=item["tags"],
+                        author_id=author.id,
+                        published_at=now,
+                        indexed_at=None,  # buộc chạy lại chỉ mục RAG
+                    )
+                )
                 created += 1
             elif existing.content_md != item["content_md"] or existing.title != item["title"]:
                 existing.title = item["title"]
@@ -183,7 +187,7 @@ def seed(dry_run: bool = False) -> None:
                 existing.kb_category_id = kb_cat.id
                 existing.ticket_category_id = ticket_cat.id if ticket_cat else None
                 existing.version += 1
-                existing.indexed_at = None   # nội dung đổi ⇒ phải index lại
+                existing.indexed_at = None  # nội dung đổi ⇒ phải index lại
                 updated += 1
             else:
                 skipped += 1

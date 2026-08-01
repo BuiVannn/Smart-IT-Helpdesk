@@ -29,4 +29,4 @@ class FakeEmbeddingClient:
         digest = hashlib.sha256(text.lower().encode()).digest()
         raw = [(digest[i % len(digest)] - 128) / 128.0 for i in range(self._dimensions)]
         norm = math.sqrt(sum(x * x for x in raw)) or 1.0
-        return [x / norm for x in raw]   # chuẩn hoá để cosine similarity có ý nghĩa
+        return [x / norm for x in raw]  # chuẩn hoá để cosine similarity có ý nghĩa

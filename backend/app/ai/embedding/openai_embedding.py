@@ -78,17 +78,21 @@ class OpenAiEmbeddingClient:
                 payload = response.json()
 
             usage = payload.get("usage", {})
-            cost_guard.record(UsageRecord(
-                model=self._model,
-                prompt_tokens=usage.get("prompt_tokens", 0),
-                completion_tokens=0,
-            ))
+            cost_guard.record(
+                UsageRecord(
+                    model=self._model,
+                    prompt_tokens=usage.get("prompt_tokens", 0),
+                    completion_tokens=0,
+                )
+            )
             logger.info(
                 "embedding batch xong",
-                extra={"extra_fields": {
-                    "count": len(batch),
-                    "latency_ms": round((time.perf_counter() - started) * 1000),
-                }},
+                extra={
+                    "extra_fields": {
+                        "count": len(batch),
+                        "latency_ms": round((time.perf_counter() - started) * 1000),
+                    }
+                },
             )
 
             # API không bảo đảm thứ tự trả về ⇒ sắp lại theo index

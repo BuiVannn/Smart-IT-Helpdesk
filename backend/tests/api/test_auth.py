@@ -39,9 +39,7 @@ class TestDangKy:
         `extra="forbid"` phải TỪ CHỐI thẳng, chứ không phải âm thầm bỏ qua —
         bỏ qua thì hôm nào đó có người thêm field `role` vào schema là thủng.
         """
-        response = client.post(
-            f"{BASE}/register", json=register_payload(role="ADMIN")
-        )
+        response = client.post(f"{BASE}/register", json=register_payload(role="ADMIN"))
         assert response.status_code == 422
 
     def test_email_trung_tra_ve_409(self, client):
@@ -60,9 +58,7 @@ class TestDangKy:
 
     def test_mat_khau_yeu_bi_tu_choi(self, client):
         for weak in ["short1A", "khongcochuhoa1", "KHONGCOCHUTHUONG1", "KhongCoSo"]:
-            response = client.post(
-                f"{BASE}/register", json=register_payload(password=weak)
-            )
+            response = client.post(f"{BASE}/register", json=register_payload(password=weak))
             assert response.status_code == 422, f"mật khẩu yếu lọt qua: {weak}"
 
     def test_response_khong_bao_gio_chua_mat_khau(self, client):
@@ -87,9 +83,7 @@ class TestDangNhap:
         assert body["expiresIn"] == 15 * 60
         assert body["user"]["email"] == user.email
 
-    def test_refresh_token_nam_trong_cookie_HttpOnly_khong_nam_trong_body(
-        self, client, make_user
-    ):
+    def test_refresh_token_nam_trong_cookie_HttpOnly_khong_nam_trong_body(self, client, make_user):
         """★ Nếu refresh token lọt vào body thì JavaScript đọc được, và một lỗ
         hổng XSS bất kỳ là mất phiên 7 ngày của người dùng."""
         user = make_user()
@@ -130,9 +124,7 @@ class TestDangNhap:
         assert response.status_code == 403
         assert response.json()["error"]["code"] == "ACCOUNT_DISABLED"
 
-    def test_qua_nhieu_lan_sai_thi_khoa_tam_KE_CA_khi_mat_khau_dung(
-        self, client, make_user
-    ):
+    def test_qua_nhieu_lan_sai_thi_khoa_tam_KE_CA_khi_mat_khau_dung(self, client, make_user):
         """★ TEST QUAN TRỌNG NHẤT CỦA MODULE NÀY.
 
         Nếu mật khẩu đúng vẫn cho vào sau 5 lần sai, nghĩa là kẻ dò mật khẩu
@@ -141,9 +133,7 @@ class TestDangNhap:
         """
         user = make_user()
         for _ in range(5):
-            client.post(
-                f"{BASE}/login", json={"email": user.email, "password": "SaiHoanToan1"}
-            )
+            client.post(f"{BASE}/login", json={"email": user.email, "password": "SaiHoanToan1"})
 
         response = client.post(
             f"{BASE}/login", json={"email": user.email, "password": GOOD_PASSWORD}
@@ -156,22 +146,24 @@ class TestDangNhap:
     def test_dang_nhap_dung_thi_xoa_bo_dem_that_bai(self, client, make_user):
         user = make_user()
         for _ in range(4):
-            client.post(
-                f"{BASE}/login", json={"email": user.email, "password": "SaiHoanToan1"}
-            )
+            client.post(f"{BASE}/login", json={"email": user.email, "password": "SaiHoanToan1"})
 
-        assert client.post(
-            f"{BASE}/login", json={"email": user.email, "password": GOOD_PASSWORD}
-        ).status_code == 200
+        assert (
+            client.post(
+                f"{BASE}/login", json={"email": user.email, "password": GOOD_PASSWORD}
+            ).status_code
+            == 200
+        )
 
         # 4 lần sai trước đó phải bị quên đi, không cộng dồn sang lần sau
         for _ in range(4):
+            client.post(f"{BASE}/login", json={"email": user.email, "password": "SaiHoanToan1"})
+        assert (
             client.post(
-                f"{BASE}/login", json={"email": user.email, "password": "SaiHoanToan1"}
-            )
-        assert client.post(
-            f"{BASE}/login", json={"email": user.email, "password": GOOD_PASSWORD}
-        ).status_code == 200
+                f"{BASE}/login", json={"email": user.email, "password": GOOD_PASSWORD}
+            ).status_code
+            == 200
+        )
 
 
 class TestXoayVongToken:
@@ -196,9 +188,7 @@ class TestXoayVongToken:
         moi = client.cookies["refresh_token"]
         assert moi != cu, "token phải đổi sau mỗi lần refresh"
 
-    def test_dung_lai_token_da_thu_hoi_thi_thu_hoi_TOAN_BO_phien(
-        self, client, make_user, login
-    ):
+    def test_dung_lai_token_da_thu_hoi_thi_thu_hoi_TOAN_BO_phien(self, client, make_user, login):
         """★ Phát hiện token bị đánh cắp.
 
         Token đã bị thay thế mà xuất hiện lần nữa thì chỉ có hai khả năng: bị
@@ -207,7 +197,7 @@ class TestXoayVongToken:
         """
         login(make_user())
         cu = client.cookies["refresh_token"]
-        client.post(f"{BASE}/refresh")            # xoay vòng, `cu` bị thu hồi
+        client.post(f"{BASE}/refresh")  # xoay vòng, `cu` bị thu hồi
         moi = client.cookies["refresh_token"]
 
         client.cookies.clear()
@@ -218,9 +208,9 @@ class TestXoayVongToken:
         # Token hợp lệ của phiên hiện tại cũng phải chết theo
         client.cookies.clear()
         client.cookies.set("refresh_token", moi, path="/api/v1/auth")
-        assert client.post(f"{BASE}/refresh").status_code == 401, (
-            "token của kẻ trộm bị chặn nhưng phiên còn lại vẫn sống — chưa thu hồi hết"
-        )
+        assert (
+            client.post(f"{BASE}/refresh").status_code == 401
+        ), "token của kẻ trộm bị chặn nhưng phiên còn lại vẫn sống — chưa thu hồi hết"
 
 
 class TestDangXuat:
@@ -260,9 +250,12 @@ class TestDoiMatKhau:
         assert client.post(f"{BASE}/refresh").status_code == 401
 
         client.headers.pop("Authorization", None)
-        assert client.post(
-            f"{BASE}/login", json={"email": user.email, "password": "MatKhauMoi456"}
-        ).status_code == 200
+        assert (
+            client.post(
+                f"{BASE}/login", json={"email": user.email, "password": "MatKhauMoi456"}
+            ).status_code
+            == 200
+        )
 
     def test_sai_mat_khau_hien_tai_thi_tu_choi(self, client, make_user, login):
         login(make_user())

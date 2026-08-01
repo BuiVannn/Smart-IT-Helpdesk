@@ -38,6 +38,7 @@ def readiness(response: Response) -> dict:
 
     try:
         import redis
+
         redis.from_url(settings.REDIS_URL, socket_connect_timeout=2).ping()
         checks["redis"] = "ok"
     except Exception as exc:

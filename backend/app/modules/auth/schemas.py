@@ -38,6 +38,7 @@ Password = Annotated[
 
 # ─────────────── Input ───────────────
 
+
 class RegisterRequest(StrictModel):
     email: EmailStr
     password: Password
@@ -57,6 +58,7 @@ class ChangePasswordRequest(StrictModel):
 
 
 # ─────────────── Output ───────────────
+
 
 class TokenResponse(ResponseModel):
     access_token: str = Field(serialization_alias="accessToken")

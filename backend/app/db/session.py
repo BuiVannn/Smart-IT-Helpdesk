@@ -12,7 +12,7 @@ engine = create_engine(
     settings.DATABASE_URL,
     pool_size=settings.DB_POOL_SIZE,
     max_overflow=settings.DB_MAX_OVERFLOW,
-    pool_pre_ping=True,   # chống kết nối chết sau khi PostgreSQL restart
+    pool_pre_ping=True,  # chống kết nối chết sau khi PostgreSQL restart
     echo=settings.DB_ECHO,
 )
 

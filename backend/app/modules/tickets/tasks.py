@@ -80,12 +80,16 @@ def reconcile_pending() -> dict:
     cutoff = datetime.now(UTC) - timedelta(minutes=settings.AI_CLASSIFY_STALE_MINUTES)
 
     with session_scope() as db:
-        stale = list(db.execute(
-            select(Ticket.id)
-            .where(Ticket.ai_status == AiStatus.PENDING, Ticket.created_at <= cutoff)
-            .order_by(Ticket.created_at)
-            .limit(RECONCILE_BATCH_SIZE)
-        ).scalars().all())
+        stale = list(
+            db.execute(
+                select(Ticket.id)
+                .where(Ticket.ai_status == AiStatus.PENDING, Ticket.created_at <= cutoff)
+                .order_by(Ticket.created_at)
+                .limit(RECONCILE_BATCH_SIZE)
+            )
+            .scalars()
+            .all()
+        )
 
     for ticket_id in stale:
         classify_ticket.delay(str(ticket_id))

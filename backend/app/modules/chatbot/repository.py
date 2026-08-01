@@ -29,29 +29,27 @@ class ChatSessionRepository:
     def get_owned(self, session_id: UUID, user_id: UUID) -> ChatSession | None:
         """Lấy phiên CỦA CHÍNH người dùng. Trả None nếu của người khác."""
         return self.session.execute(
-            select(ChatSession).where(
-                ChatSession.id == session_id, ChatSession.user_id == user_id
-            )
+            select(ChatSession).where(ChatSession.id == session_id, ChatSession.user_id == user_id)
         ).scalar_one_or_none()
 
-    def list_for_user(
-        self, user_id: UUID, params: PageParams
-    ) -> tuple[list[ChatSession], int]:
+    def list_for_user(self, user_id: UUID, params: PageParams) -> tuple[list[ChatSession], int]:
         base = select(ChatSession).where(ChatSession.user_id == user_id)
 
-        total = self.session.execute(
-            select(func.count()).select_from(base.subquery())
-        ).scalar_one()
+        total = self.session.execute(select(func.count()).select_from(base.subquery())).scalar_one()
 
-        rows = self.session.execute(
-            base.order_by(
-                # Phiên vừa nhắn xếp trước; phiên chưa nhắn lần nào dùng
-                # created_at để không bị rơi xuống cuối danh sách vì NULL.
-                func.coalesce(ChatSession.last_message_at, ChatSession.created_at).desc()
+        rows = (
+            self.session.execute(
+                base.order_by(
+                    # Phiên vừa nhắn xếp trước; phiên chưa nhắn lần nào dùng
+                    # created_at để không bị rơi xuống cuối danh sách vì NULL.
+                    func.coalesce(ChatSession.last_message_at, ChatSession.created_at).desc()
+                )
+                .offset(params.offset)
+                .limit(params.limit)
             )
-            .offset(params.offset)
-            .limit(params.limit)
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         return list(rows), total
 
@@ -62,5 +60,7 @@ class ChatSessionRepository:
                 .options(selectinload(ChatMessage.citations))
                 .where(ChatMessage.session_id == session_id)
                 .order_by(ChatMessage.created_at.asc())
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )

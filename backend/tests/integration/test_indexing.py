@@ -52,9 +52,11 @@ async def test_tao_chunk_va_dong_dau_thoi_gian(db, service, article):
     assert result.chunks_created > 0
     assert article.indexed_at is not None
 
-    chunks = db.execute(
-        select(ArticleChunk).where(ArticleChunk.article_id == article.id)
-    ).scalars().all()
+    chunks = (
+        db.execute(select(ArticleChunk).where(ArticleChunk.article_id == article.id))
+        .scalars()
+        .all()
+    )
     assert len(chunks) == result.chunks_created
 
 
@@ -93,9 +95,7 @@ async def test_DOC_bai_viet_KHONG_duoc_lam_chi_muc_thanh_cu(db, service, article
     # transaction, nên mốc do onupdate ghi ra trùng khít mốc cũ và lỗi bị che.
     past = datetime.now(UTC) - timedelta(hours=1)
     db.execute(
-        update(KbArticle)
-        .where(KbArticle.id == article.id)
-        .values(updated_at=past, indexed_at=past)
+        update(KbArticle).where(KbArticle.id == article.id).values(updated_at=past, indexed_at=past)
     )
     db.flush()
     db.refresh(article)
@@ -120,9 +120,9 @@ async def test_chi_con_lai_bai_can_index_sau_khi_da_index(db, service, article):
     db.flush()
 
     results = await service.reindex_all(only_stale=True)
-    assert article.slug not in [r.slug for r in results], (
-        "bài vừa index xong lại lọt vào danh sách cần index"
-    )
+    assert article.slug not in [
+        r.slug for r in results
+    ], "bài vừa index xong lại lọt vào danh sách cần index"
 
 
 async def test_bai_khong_PUBLISHED_bi_xoa_khoi_chi_muc(db, service, article):
@@ -135,9 +135,11 @@ async def test_bai_khong_PUBLISHED_bi_xoa_khoi_chi_muc(db, service, article):
 
     assert not result.was_indexed
     assert result.chunks_removed > 0
-    remaining = db.execute(
-        select(ArticleChunk).where(ArticleChunk.article_id == article.id)
-    ).scalars().all()
+    remaining = (
+        db.execute(select(ArticleChunk).where(ArticleChunk.article_id == article.id))
+        .scalars()
+        .all()
+    )
     assert remaining == []
 
 
@@ -147,7 +149,9 @@ async def test_index_lai_khong_nhan_doi_chunk(db, service, article):
     second = await service.index_article(article.id)
 
     assert first.chunks_created == second.chunks_created
-    total = db.execute(
-        select(ArticleChunk).where(ArticleChunk.article_id == article.id)
-    ).scalars().all()
+    total = (
+        db.execute(select(ArticleChunk).where(ArticleChunk.article_id == article.id))
+        .scalars()
+        .all()
+    )
     assert len(total) == second.chunks_created

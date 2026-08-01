@@ -20,8 +20,8 @@ AT_RISK_RATIO = 0.25  # còn <= 25% thời gian thì cảnh báo
 class BusinessCalendar:
     """Lịch làm việc. holidays là tập ngày nghỉ (không tính vào SLA)."""
 
-    start_hour: float = 8.5     # 8:30
-    end_hour: float = 17.5      # 17:30
+    start_hour: float = 8.5  # 8:30
+    end_hour: float = 17.5  # 17:30
     workdays: frozenset[int] = frozenset({0, 1, 2, 3, 4})  # thứ 2 → thứ 6
     holidays: frozenset[date] = field(default_factory=frozenset)
 
@@ -62,9 +62,7 @@ class SlaCalculator:
     def __init__(self, calendar: BusinessCalendar | None = None) -> None:
         self.calendar = calendar or BusinessCalendar()
 
-    def due_at(
-        self, start: datetime, minutes: int, business_hours_only: bool = True
-    ) -> datetime:
+    def due_at(self, start: datetime, minutes: int, business_hours_only: bool = True) -> datetime:
         """Cộng `minutes` phút LÀM VIỆC vào `start`, trả về hạn chót."""
         if not business_hours_only:
             return start + timedelta(minutes=minutes)

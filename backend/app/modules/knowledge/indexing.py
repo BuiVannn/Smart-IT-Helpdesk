@@ -71,7 +71,10 @@ class IndexingService:
                 extra={"extra_fields": {"slug": article.slug, "removed": removed}},
             )
             return IndexResult(
-                article_id, article.slug, 0, removed,
+                article_id,
+                article.slug,
+                0,
+                removed,
                 skipped_reason=f"Trạng thái {article.status}, không index",
             )
 
@@ -83,21 +86,21 @@ class IndexingService:
 
         vectors = await self.embedding.embed([c.content for c in chunks])
         if len(vectors) != len(chunks):
-            raise RuntimeError(
-                f"Số vector ({len(vectors)}) không khớp số chunk ({len(chunks)})"
-            )
+            raise RuntimeError(f"Số vector ({len(vectors)}) không khớp số chunk ({len(chunks)})")
 
-        self.session.add_all([
-            ArticleChunk(
-                article_id=article_id,
-                chunk_index=chunk.index,
-                content=chunk.content,
-                token_count=chunk.token_count,
-                embedding=vector,
-                embedding_model=self.embedding.model_name,
-            )
-            for chunk, vector in zip(chunks, vectors, strict=True)
-        ])
+        self.session.add_all(
+            [
+                ArticleChunk(
+                    article_id=article_id,
+                    chunk_index=chunk.index,
+                    content=chunk.content,
+                    token_count=chunk.token_count,
+                    embedding=vector,
+                    embedding_model=self.embedding.model_name,
+                )
+                for chunk, vector in zip(chunks, vectors, strict=True)
+            ]
+        )
 
         # `updated_at` có onupdate=func.now(), nên lệnh UPDATE này cũng đẩy nó
         # lên. Ở đây vô hại: cả hai cột đều nhận `now()` của CÙNG một câu lệnh
@@ -111,10 +114,14 @@ class IndexingService:
         latency = round((time.perf_counter() - started) * 1000)
         logger.info(
             "index bài viết xong",
-            extra={"extra_fields": {
-                "slug": article.slug, "chunks": len(chunks),
-                "removed": removed, "latency_ms": latency,
-            }},
+            extra={
+                "extra_fields": {
+                    "slug": article.slug,
+                    "chunks": len(chunks),
+                    "removed": removed,
+                    "latency_ms": latency,
+                }
+            },
         )
         return IndexResult(article_id, article.slug, len(chunks), removed, latency_ms=latency)
 
@@ -127,8 +134,7 @@ class IndexingService:
         stmt = select(KbArticle).where(KbArticle.status == ArticleStatus.PUBLISHED)
         if only_stale:
             stmt = stmt.where(
-                (KbArticle.indexed_at.is_(None))
-                | (KbArticle.indexed_at < KbArticle.updated_at)
+                (KbArticle.indexed_at.is_(None)) | (KbArticle.indexed_at < KbArticle.updated_at)
             )
 
         articles = list(self.session.execute(stmt.order_by(KbArticle.slug)).scalars().all())
@@ -141,10 +147,15 @@ class IndexingService:
             except Exception as exc:
                 # Một bài lỗi không được làm hỏng cả lượt chạy
                 logger.exception(f"lỗi khi index {article.slug}", exc_info=exc)
-                results.append(IndexResult(
-                    article.id, article.slug, 0, 0,
-                    skipped_reason=f"Lỗi: {type(exc).__name__}: {exc}",
-                ))
+                results.append(
+                    IndexResult(
+                        article.id,
+                        article.slug,
+                        0,
+                        0,
+                        skipped_reason=f"Lỗi: {type(exc).__name__}: {exc}",
+                    )
+                )
         return results
 
     def _delete_chunks(self, article_id: UUID) -> int:
@@ -154,6 +165,4 @@ class IndexingService:
         return result.rowcount or 0
 
     def count_chunks(self) -> int:
-        return self.session.execute(
-            select(func.count()).select_from(ArticleChunk)
-        ).scalar_one()
+        return self.session.execute(select(func.count()).select_from(ArticleChunk)).scalar_one()

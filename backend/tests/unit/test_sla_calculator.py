@@ -40,7 +40,7 @@ class TestDueAt:
         # Thứ Sáu 2026-07-31 17:00, SLA 240 phút
         # → 30 phút còn lại hôm nay, 210 phút còn lại vào thứ Hai từ 8:30 → 12:00
         result = calculator.due_at(dt(2026, 7, 31, 17, 0), 240)
-        assert result.date() == date(2026, 8, 3)   # thứ Hai
+        assert result.date() == date(2026, 8, 3)  # thứ Hai
         assert result == dt(2026, 8, 3, 12, 0)
 
     def test_bo_qua_ngay_le(self, calculator):
@@ -60,37 +60,47 @@ class TestDueAt:
 class TestState:
     def test_con_nhieu_thoi_gian(self, calculator):
         state = calculator.state(
-            created_at=dt(2026, 7, 30, 9, 0), due_at=dt(2026, 7, 30, 17, 0),
-            resolved_at=None, now=dt(2026, 7, 30, 10, 0),
+            created_at=dt(2026, 7, 30, 9, 0),
+            due_at=dt(2026, 7, 30, 17, 0),
+            resolved_at=None,
+            now=dt(2026, 7, 30, 10, 0),
         )
         assert state == SlaState.ON_TRACK
 
     def test_sap_het_han(self, calculator):
         state = calculator.state(
-            created_at=dt(2026, 7, 30, 9, 0), due_at=dt(2026, 7, 30, 17, 0),
-            resolved_at=None, now=dt(2026, 7, 30, 16, 0),
+            created_at=dt(2026, 7, 30, 9, 0),
+            due_at=dt(2026, 7, 30, 17, 0),
+            resolved_at=None,
+            now=dt(2026, 7, 30, 16, 0),
         )
         assert state == SlaState.AT_RISK
 
     def test_da_qua_han(self, calculator):
         state = calculator.state(
-            created_at=dt(2026, 7, 30, 9, 0), due_at=dt(2026, 7, 30, 17, 0),
-            resolved_at=None, now=dt(2026, 7, 30, 18, 0),
+            created_at=dt(2026, 7, 30, 9, 0),
+            due_at=dt(2026, 7, 30, 17, 0),
+            resolved_at=None,
+            now=dt(2026, 7, 30, 18, 0),
         )
         assert state == SlaState.BREACHED
 
     def test_xu_ly_xong_truoc_han(self, calculator):
         state = calculator.state(
-            created_at=dt(2026, 7, 30, 9, 0), due_at=dt(2026, 7, 30, 17, 0),
-            resolved_at=dt(2026, 7, 30, 15, 0), now=dt(2026, 7, 30, 18, 0),
+            created_at=dt(2026, 7, 30, 9, 0),
+            due_at=dt(2026, 7, 30, 17, 0),
+            resolved_at=dt(2026, 7, 30, 15, 0),
+            now=dt(2026, 7, 30, 18, 0),
         )
         assert state == SlaState.MET
 
     def test_thoi_gian_cho_nguoi_dung_khong_tinh_vao_sla(self, calculator):
         """Thời gian ở PENDING_REQUESTER không phải lỗi của Agent."""
         state = calculator.state(
-            created_at=dt(2026, 7, 30, 9, 0), due_at=dt(2026, 7, 30, 17, 0),
-            resolved_at=None, now=dt(2026, 7, 30, 18, 0),
-            paused_seconds=7200,   # đã chờ người dùng 2 giờ
+            created_at=dt(2026, 7, 30, 9, 0),
+            due_at=dt(2026, 7, 30, 17, 0),
+            resolved_at=None,
+            now=dt(2026, 7, 30, 18, 0),
+            paused_seconds=7200,  # đã chờ người dùng 2 giờ
         )
         assert state != SlaState.BREACHED

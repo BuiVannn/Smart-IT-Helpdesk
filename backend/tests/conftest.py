@@ -47,6 +47,7 @@ DEFAULT_TEST_PASSWORD = "MatKhau123"
 
 # ─────────── Fixture cần DB ───────────
 
+
 @pytest.fixture(scope="session")
 def db_connection():
     """Một kết nối dùng chung cho cả phiên test. Bỏ qua toàn bộ nếu không có DB."""
@@ -226,11 +227,13 @@ def sla_policies(db):
             select(SlaPolicy).where(SlaPolicy.priority == priority)
         ).scalar_one_or_none()
         if exists is None:
-            db.add(SlaPolicy(
-                priority=priority,
-                first_response_minutes=first,
-                resolution_minutes=resolution,
-            ))
+            db.add(
+                SlaPolicy(
+                    priority=priority,
+                    first_response_minutes=first,
+                    resolution_minutes=resolution,
+                )
+            )
     db.flush()
 
 
@@ -258,6 +261,7 @@ def auth_client(client, make_user, login) -> TestClient:
 
 # ─────────── Fixture không cần DB ───────────
 
+
 @pytest.fixture
 def fake_llm() -> FakeLlmClient:
     """LLM giả — KHÔNG cần API key, KHÔNG tốn tiền."""
@@ -270,6 +274,7 @@ def fake_embedding() -> FakeEmbeddingClient:
 
 
 # ─────────── User giả cho unit test (không chạm DB) ───────────
+
 
 class FakeUser:
     """Đối tượng user tối thiểu cho unit test các lớp thuần."""

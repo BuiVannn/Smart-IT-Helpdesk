@@ -94,11 +94,13 @@ def seed() -> None:
             if not db.execute(
                 select(SlaPolicy).where(SlaPolicy.priority == priority)
             ).scalar_one_or_none():
-                db.add(SlaPolicy(
-                    priority=priority,
-                    first_response_minutes=first,
-                    resolution_minutes=resolution,
-                ))
+                db.add(
+                    SlaPolicy(
+                        priority=priority,
+                        first_response_minutes=first,
+                        resolution_minutes=resolution,
+                    )
+                )
 
         # Chủ đề kho tri thức
         for slug, name in KB_CATEGORIES:
@@ -117,13 +119,15 @@ def seed() -> None:
         depts = {d.code: d.id for d in db.execute(select(Department)).scalars().all()}
         for email, full_name, role, dept_code in DEV_USERS:
             if not db.execute(select(User).where(User.email == email)).scalar_one_or_none():
-                db.add(User(
-                    email=email,
-                    full_name=full_name,
-                    role=role,
-                    department_id=depts.get(dept_code),
-                    password_hash=hash_password(DEV_PASSWORD),
-                ))
+                db.add(
+                    User(
+                        email=email,
+                        full_name=full_name,
+                        role=role,
+                        department_id=depts.get(dept_code),
+                        password_hash=hash_password(DEV_PASSWORD),
+                    )
+                )
 
     print("✓ Đã nạp dữ liệu khởi tạo")
     print(f"  Tài khoản dev: admin@company.com / {DEV_PASSWORD}")
