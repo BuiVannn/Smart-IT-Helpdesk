@@ -27,7 +27,7 @@ from app.modules.users.constants import UserRole
 from app.modules.users.models import AgentSkill, Holiday, User
 
 MAX_SKILL_LEVEL = 3
-OFF_DUTY_FACTOR = 0.3   # ngoài ca vẫn được xét, chỉ bị trừ điểm
+OFF_DUTY_FACTOR = 0.3  # ngoài ca vẫn được xét, chỉ bị trừ điểm
 
 # Trọng số tải theo mức ưu tiên: một ticket URGENT ngốn thời gian gấp nhiều
 # lần một câu hỏi LOW, nên đếm đầu ticket là đếm sai.
@@ -46,7 +46,7 @@ class AgentSnapshot:
     agent_id: UUID
     full_name: str
     email: str
-    skill_level: int              # 0 = chưa ghi nhận chuyên môn cho loại này
+    skill_level: int  # 0 = chưa ghi nhận chuyên môn cho loại này
     open_tickets: int
     weighted_load: int
     last_login_at: datetime | None
@@ -125,9 +125,7 @@ class AssigneeScorer:
         )
 
     @staticmethod
-    def explain(
-        snapshot: AgentSnapshot, *, on_duty: bool, category_name: str | None
-    ) -> str:
+    def explain(snapshot: AgentSnapshot, *, on_duty: bool, category_name: str | None) -> str:
         """Lý do đọc được cho người — bắt buộc theo AC của US-20.
 
         Một điểm số 0.72 không giúp Agent trưởng quyết định gì. "Chuyên môn
@@ -206,9 +204,7 @@ class AssigneeSuggestionService:
         # agent_id sẽ trả về một dòng cho MỖI kỹ năng của Agent, và phép
         # count(tickets) bị nhân lên đúng bằng số kỹ năng — một Agent có 5 kỹ
         # năng bỗng nhiên "đang mở 15 ticket" và không bao giờ được gợi ý nữa.
-        skill_level = (
-            literal(0) if category_id is None else func.coalesce(AgentSkill.level, 0)
-        )
+        skill_level = literal(0) if category_id is None else func.coalesce(AgentSkill.level, 0)
         group_by = [User.id, User.full_name, User.email, User.last_login_at]
 
         stmt = select(

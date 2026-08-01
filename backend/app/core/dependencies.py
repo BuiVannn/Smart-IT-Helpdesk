@@ -41,7 +41,7 @@ def get_current_user(
     if not user.is_active:
         raise AccountDisabledError()
 
-    user_id_ctx.set(str(user.id))   # để mọi dòng log trong request có user_id
+    user_id_ctx.set(str(user.id))  # để mọi dòng log trong request có user_id
     return user
 
 

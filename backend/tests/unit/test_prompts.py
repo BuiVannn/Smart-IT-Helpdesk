@@ -64,7 +64,8 @@ class TestClassifyPrompt:
     def test_co_ranh_gioi_phan_tach_du_lieu_nguoi_dung(self):
         """Nội dung người dùng phải nằm giữa hai mốc rõ ràng — chống prompt injection."""
         _, user = build_classify_prompt(
-            title="Test", description="Nội dung test dài hơn mười ký tự.",
+            title="Test",
+            description="Nội dung test dài hơn mười ký tự.",
             categories=[("other", "Khác")],
         )
         assert "--- BẮT ĐẦU YÊU CẦU HỖ TRỢ" in user
@@ -75,7 +76,8 @@ class TestClassifyPrompt:
 
     def test_cat_khoang_trang_thua(self):
         _, user = build_classify_prompt(
-            title="   Tiêu đề   ", description="   Mô tả đủ dài để hợp lệ.   ",
+            title="   Tiêu đề   ",
+            description="   Mô tả đủ dài để hợp lệ.   ",
             categories=[("other", "Khác")],
         )
         assert "Tiêu đề: Tiêu đề\n" in user
@@ -86,7 +88,9 @@ class TestClassificationSchema:
         """Admin thêm loại sự cố mới thì AI dùng được ngay, không cần sửa code."""
         schema = build_classification_schema(["network", "hardware", "custom-moi"])
         assert schema["properties"]["category_slug"]["enum"] == [
-            "network", "hardware", "custom-moi"
+            "network",
+            "hardware",
+            "custom-moi",
         ]
 
     def test_khong_cho_phep_field_la(self):
@@ -100,9 +104,7 @@ class TestClassificationSchema:
 
     def test_bon_field_deu_bat_buoc(self):
         schema = build_classification_schema(["other"])
-        assert set(schema["required"]) == {
-            "category_slug", "priority", "confidence", "reasoning"
-        }
+        assert set(schema["required"]) == {"category_slug", "priority", "confidence", "reasoning"}
 
 
 class TestRagPrompt:
@@ -197,7 +199,8 @@ class TestEvalFixtures:
         rows = [
             json.loads(line)
             for line in (FIXTURES / "classification_eval.jsonl")
-            .read_text(encoding="utf-8").splitlines()
+            .read_text(encoding="utf-8")
+            .splitlines()
             if line.strip()
         ]
         # Ngưỡng TỐI THIỂU theo docs/design/07 §5.1, không phải con số cố định:
@@ -216,6 +219,14 @@ class TestEvalFixtures:
         assert sum(1 for r in rows if r["difficulty"] == "ambiguous") >= 10
         assert sum(1 for r in rows if r["difficulty"] == "tricky") >= 5
 
-        valid = {"network", "hardware", "software", "account",
-                 "access", "email", "security", "other"}
+        valid = {
+            "network",
+            "hardware",
+            "software",
+            "account",
+            "access",
+            "email",
+            "security",
+            "other",
+        }
         assert {r["expect_category"] for r in rows} <= valid

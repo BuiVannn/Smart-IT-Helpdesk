@@ -75,8 +75,12 @@ celery_app.conf.update(
 
 # Các module sẽ được thêm vào đây khi có tasks.py:
 celery_app.autodiscover_tasks(
-    ["app.modules.tickets", "app.modules.knowledge", "app.modules.notifications",
-     "app.modules.auth"],
+    [
+        "app.modules.tickets",
+        "app.modules.knowledge",
+        "app.modules.notifications",
+        "app.modules.auth",
+    ],
     related_name="tasks",
 )
 

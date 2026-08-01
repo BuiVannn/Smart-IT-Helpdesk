@@ -57,8 +57,6 @@ class RefreshTokenRepository:
     def delete_expired(self, before: datetime | None = None) -> int:
         """Dọn token đã hết hạn — gọi định kỳ bằng Celery beat."""
         cutoff = before or datetime.now(UTC)
-        result = self.session.execute(
-            delete(RefreshToken).where(RefreshToken.expires_at < cutoff)
-        )
+        result = self.session.execute(delete(RefreshToken).where(RefreshToken.expires_at < cutoff))
         self.session.flush()
         return result.rowcount or 0

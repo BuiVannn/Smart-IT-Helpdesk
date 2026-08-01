@@ -62,9 +62,7 @@ class KbArticleService:
         q: str | None = None,
     ) -> tuple[list[KbArticle], int]:
         statuses = self._visible_statuses(user, status)
-        return self.articles.list(
-            params, statuses=statuses, category_id=category_id, tag=tag, q=q
-        )
+        return self.articles.list(params, statuses=statuses, category_id=category_id, tag=tag, q=q)
 
     def get_by_slug(self, user: User, slug: str, *, count_view: bool = True) -> KbArticle:
         article = self.articles.get_by_slug(slug)
@@ -228,9 +226,10 @@ class KbArticleService:
                 index_article.apply_async(
                     args=[str(article.id)], retry=False, connection=connection
                 )
-            logger.info("đã xếp hàng index", extra={"extra_fields": {
-                "slug": article.slug, "reason": reason
-            }})
+            logger.info(
+                "đã xếp hàng index",
+                extra={"extra_fields": {"slug": article.slug, "reason": reason}},
+            )
         except Exception as exc:
             logger.warning(
                 f"không xếp hàng index được ({reason}), sẽ do job đối soát nhặt lại: "
@@ -257,9 +256,7 @@ class KbArticleService:
             raise ForbiddenError("Chỉ Admin mới soạn thảo được tài liệu")
 
     @staticmethod
-    def _visible_statuses(
-        user: User, requested: ArticleStatus | None
-    ) -> list[ArticleStatus]:
+    def _visible_statuses(user: User, requested: ArticleStatus | None) -> list[ArticleStatus]:
         if user.role != UserRole.ADMIN:
             # Nhân viên và Agent luôn chỉ thấy bài đã xuất bản, kể cả khi cố
             # tình truyền ?status=DRAFT.
@@ -273,9 +270,7 @@ class KbCategoryService:
         self.categories = KbCategoryRepository(session)
 
     def list(self, user: User) -> list[tuple[KbCategory, int]]:
-        return self.categories.list_with_counts(
-            published_only=user.role != UserRole.ADMIN
-        )
+        return self.categories.list_with_counts(published_only=user.role != UserRole.ADMIN)
 
     def create(self, user: User, data: CreateCategoryRequest) -> KbCategory:
         if user.role != UserRole.ADMIN:

@@ -10,6 +10,7 @@ nhiều, nằm gọn trong bộ nhớ, và không phải cập nhật khi ticket
 Revision ID: 0003
 Revises: 0002
 """
+
 from collections.abc import Sequence
 
 from alembic import op
@@ -62,12 +63,8 @@ def upgrade() -> None:
 
     # ── users ──
     op.execute("CREATE INDEX ix_users_role_active ON users (role) WHERE is_active = true")
-    op.execute(
-        "CREATE INDEX ix_users_department ON users (department_id) WHERE is_active = true"
-    )
-    op.execute(
-        "CREATE INDEX ix_users_name_trgm ON users USING GIN (full_name gin_trgm_ops)"
-    )
+    op.execute("CREATE INDEX ix_users_department ON users (department_id) WHERE is_active = true")
+    op.execute("CREATE INDEX ix_users_name_trgm ON users USING GIN (full_name gin_trgm_ops)")
 
     # ── refresh token ──
     op.execute(
@@ -76,9 +73,7 @@ def upgrade() -> None:
     op.execute("CREATE INDEX ix_rt_expires ON refresh_tokens (expires_at)")
 
     # ── thông báo: đếm chưa đọc chạy 30 giây/lần cho MỌI người đang online ──
-    op.execute(
-        "CREATE INDEX ix_notifications_user ON notifications (user_id, created_at DESC)"
-    )
+    op.execute("CREATE INDEX ix_notifications_user ON notifications (user_id, created_at DESC)")
 
     # ── kho tri thức ──
     op.execute("""
@@ -105,9 +100,7 @@ def upgrade() -> None:
     op.execute("CREATE INDEX ix_chunks_article ON article_chunks (article_id)")
 
     # ── chat ──
-    op.execute(
-        "CREATE INDEX ix_chat_sessions_user ON chat_sessions (user_id, created_at DESC)"
-    )
+    op.execute("CREATE INDEX ix_chat_sessions_user ON chat_sessions (user_id, created_at DESC)")
     op.execute("CREATE INDEX ix_chat_messages_sess ON chat_messages (session_id, created_at)")
     op.execute("""
         CREATE INDEX ix_chat_msg_nocontext ON chat_messages (created_at)
@@ -115,12 +108,8 @@ def upgrade() -> None:
     """)
 
     # ── chỉ số chất lượng AI (US-22) ──
-    op.execute(
-        "CREATE INDEX ix_ai_class_ticket ON ai_classifications (ticket_id, created_at DESC)"
-    )
-    op.execute(
-        "CREATE INDEX ix_ai_class_report ON ai_classifications (created_at, was_accepted)"
-    )
+    op.execute("CREATE INDEX ix_ai_class_ticket ON ai_classifications (ticket_id, created_at DESC)")
+    op.execute("CREATE INDEX ix_ai_class_report ON ai_classifications (created_at, was_accepted)")
 
     # ── đánh giá & idempotency ──
     op.execute("CREATE INDEX ix_ratings_agent ON ticket_ratings (agent_id, created_at DESC)")
@@ -128,15 +117,34 @@ def upgrade() -> None:
 
 
 INDEX_NAMES = [
-    "ix_tickets_assignee_open", "ix_tickets_unassigned", "ix_tickets_sla_monitor",
-    "ix_tickets_ai_pending", "ix_tickets_reporting", "ix_comments_ticket",
-    "ix_attachments_ticket", "ix_events_ticket", "ix_events_type_time",
-    "ix_users_role_active", "ix_users_department", "ix_users_name_trgm",
-    "ix_rt_user_active", "ix_rt_expires", "ix_notifications_user",
-    "ix_articles_published", "ix_articles_category", "ix_articles_tags",
-    "ix_articles_stale", "ix_chunks_embedding", "ix_chunks_article",
-    "ix_chat_sessions_user", "ix_chat_messages_sess", "ix_chat_msg_nocontext",
-    "ix_ai_class_ticket", "ix_ai_class_report", "ix_ratings_agent", "ix_idem_expires",
+    "ix_tickets_assignee_open",
+    "ix_tickets_unassigned",
+    "ix_tickets_sla_monitor",
+    "ix_tickets_ai_pending",
+    "ix_tickets_reporting",
+    "ix_comments_ticket",
+    "ix_attachments_ticket",
+    "ix_events_ticket",
+    "ix_events_type_time",
+    "ix_users_role_active",
+    "ix_users_department",
+    "ix_users_name_trgm",
+    "ix_rt_user_active",
+    "ix_rt_expires",
+    "ix_notifications_user",
+    "ix_articles_published",
+    "ix_articles_category",
+    "ix_articles_tags",
+    "ix_articles_stale",
+    "ix_chunks_embedding",
+    "ix_chunks_article",
+    "ix_chat_sessions_user",
+    "ix_chat_messages_sess",
+    "ix_chat_msg_nocontext",
+    "ix_ai_class_ticket",
+    "ix_ai_class_report",
+    "ix_ratings_agent",
+    "ix_idem_expires",
 ]
 
 

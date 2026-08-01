@@ -45,6 +45,10 @@ ignore = [
 # Tên test viết bằng tiếng Việt và CỐ TÌNH viết hoa phần nhấn mạnh
 # (KHONG, TOAN_BO...) để khi CI đỏ là đọc ra ngay nghiệp vụ nào hỏng.
 "tests/**" = ["N802"]
+# File migration do Alembic sinh ra: cột và ràng buộc nằm trên một dòng dài.
+# Bẻ dòng thủ công ở đây vừa vô nghĩa vừa làm khó đối chiếu với bản autogenerate
+# lần sau. Chỉ tha E501 (dòng dài), mọi luật khác vẫn áp dụng bình thường.
+"migrations/versions/*.py" = ["E501"]
 
 [tool.black]
 line-length = 100
@@ -62,12 +66,36 @@ asyncio_mode = "auto"
 [tool.importlinter]
 root_package = "app"
 
+# ★ `app.db.all_models` CỐ Ý import ngược tầng, và đây là ngoại lệ có lý do.
+# SQLAlchemy phải nạp TOÀN BỘ model trước khi dựng mapper, nếu không những
+# quan hệ khai báo bằng chuỗi (ChatCitation.article -> "KbArticle") sẽ không
+# phân giải được. Hậu quả đã từng xảy ra: ứng dụng khởi động bình thường rồi
+# chết ở REQUEST ĐẦU TIÊN, trong khi bộ test vẫn xanh vì conftest tự nạp hộ.
+#
+# Ghi ngoại lệ ở đây thay vì tắt cả hợp đồng: mọi vi phạm phân tầng KHÁC vẫn
+# bị chặn. Một hợp đồng bị tắt là một hợp đồng không tồn tại.
 [[tool.importlinter.contracts]]
 name = "Kiến trúc phân tầng"
 type = "layers"
 layers = ["app.modules", "app.ai | app.storage", "app.db", "app.core"]
+ignore_imports = [
+    "app.db.all_models -> app.modules.**",
+    # ── NỢ KỸ THUẬT, ghi ra để nhìn thấy chứ không phải để hợp thức hoá ──
+    # Hai ngoại lệ dưới đây là vi phạm phân tầng THẬT, khác hẳn all_models ở
+    # trên. Chúng được hoãn lại vì gỡ đúng cách là đổi đường import ở toàn bộ
+    # router, không phải việc nên làm chung với PR dựng CI. Xử lý ở Sprint 2:
+    #
+    # 1. `get_current_user` nằm ở core nhưng cần model User ⇒ chuyển sang
+    #    app/modules/auth/dependencies.py, nơi nó thật sự thuộc về.
+    "app.core.dependencies -> app.modules.**",
+    "app.core.dependencies -> app.db.**",
+    # 2. Prompt RAG là chuyện của tầng AI, không phải của module chatbot ⇒
+    #    chuyển nội dung prompt sang app/ai/.
+    "app.ai.retriever -> app.modules.chatbot.prompts",
+]
 
 [[tool.importlinter.contracts]]
 name = "Module độc lập không được import lẫn nhau"
 type = "independence"
 modules = ["app.modules.auth", "app.modules.knowledge", "app.modules.notifications"]
+ignore_imports = ["app.db.all_models -> app.modules.**"]

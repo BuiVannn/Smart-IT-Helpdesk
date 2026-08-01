@@ -26,8 +26,8 @@ class TransitionRule:
     allowed_roles: frozenset[UserRole]
     requires_assignee: bool = False
     requires_resolution_note: bool = False
-    requester_only: bool = False   # chỉ người TẠO ticket được thực hiện
-    assignee_only: bool = False    # chỉ người ĐƯỢC GIAO được thực hiện
+    requester_only: bool = False  # chỉ người TẠO ticket được thực hiện
+    assignee_only: bool = False  # chỉ người ĐƯỢC GIAO được thực hiện
 
 
 ALL_ROLES = frozenset({R.EMPLOYEE, R.IT_AGENT, R.ADMIN})
@@ -68,8 +68,8 @@ class TicketStateMachine:
             TransitionRule(S.IN_PROGRESS, frozenset({R.EMPLOYEE, R.ADMIN}), requester_only=True),
             TransitionRule(S.CLOSED, ALL_ROLES),
         ),
-        S.CLOSED: (),      # trạng thái cuối
-        S.CANCELLED: (),   # trạng thái cuối
+        S.CLOSED: (),  # trạng thái cuối
+        S.CANCELLED: (),  # trạng thái cuối
     }
 
     REOPEN_WINDOW_DAYS = 7
@@ -155,6 +155,5 @@ class TicketStateMachine:
             note = (resolution_note or "").strip()
             if len(note) < cls.MIN_RESOLUTION_NOTE_LENGTH:
                 raise InvalidStatusTransitionError(
-                    f"Phải nhập ghi chú xử lý ít nhất "
-                    f"{cls.MIN_RESOLUTION_NOTE_LENGTH} ký tự"
+                    f"Phải nhập ghi chú xử lý ít nhất " f"{cls.MIN_RESOLUTION_NOTE_LENGTH} ký tự"
                 )

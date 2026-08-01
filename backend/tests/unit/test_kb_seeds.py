@@ -26,7 +26,14 @@ FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)$", re.DOTALL)
 # Phải khớp với dữ liệu seed trong scripts/seed.py
 VALID_KB_CATEGORIES = {"huong-dan-chung", "mang", "phan-mem", "tai-khoan", "bao-mat"}
 VALID_TICKET_CATEGORIES = {
-    "network", "hardware", "software", "account", "access", "email", "security", "other",
+    "network",
+    "hardware",
+    "software",
+    "account",
+    "access",
+    "email",
+    "security",
+    "other",
 }
 
 MIN_WORDS = 200
@@ -180,6 +187,6 @@ def test_bai_ve_mat_khau_co_canh_bao_it_khong_hoi_mat_khau():
         if path.stem not in password_articles:
             continue
         text = path.read_text(encoding="utf-8").lower()
-        assert "không bao giờ" in text and "hỏi mật khẩu" in text, (
-            f"{path.name}: thiếu cảnh báo 'đội IT không bao giờ hỏi mật khẩu'"
-        )
+        assert (
+            "không bao giờ" in text and "hỏi mật khẩu" in text
+        ), f"{path.name}: thiếu cảnh báo 'đội IT không bao giờ hỏi mật khẩu'"

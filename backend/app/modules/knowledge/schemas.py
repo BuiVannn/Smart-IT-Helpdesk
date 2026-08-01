@@ -23,6 +23,7 @@ class CategoryBrief(ResponseModel):
 
 # ─────────────── Input ───────────────
 
+
 class CreateArticleRequest(StrictModel):
     title: str = Field(min_length=5, max_length=200)
     content_md: str = Field(alias="contentMd", min_length=20)
@@ -54,6 +55,7 @@ class CreateCategoryRequest(StrictModel):
 
 # ─────────────── Output ───────────────
 
+
 class ArticleListItem(ResponseModel):
     """Bản rút gọn cho danh sách — KHÔNG có `contentMd`.
 
@@ -69,9 +71,7 @@ class ArticleListItem(ResponseModel):
     category: CategoryBrief | None = None
     tags: list[str]
     view_count: int = Field(serialization_alias="viewCount")
-    published_at: datetime | None = Field(
-        default=None, serialization_alias="publishedAt"
-    )
+    published_at: datetime | None = Field(default=None, serialization_alias="publishedAt")
     updated_at: datetime = Field(serialization_alias="updatedAt")
     version: int
 
@@ -79,9 +79,7 @@ class ArticleListItem(ResponseModel):
 class ArticleResponse(ArticleListItem):
     content_md: str = Field(serialization_alias="contentMd")
     author: UserBrief | None = None
-    ticket_category_id: UUID | None = Field(
-        default=None, serialization_alias="ticketCategoryId"
-    )
+    ticket_category_id: UUID | None = Field(default=None, serialization_alias="ticketCategoryId")
     created_at: datetime = Field(serialization_alias="createdAt")
     # NULL hoặc cũ hơn updated_at ⇒ chatbot đang dùng bản chưa cập nhật
     indexed_at: datetime | None = Field(default=None, serialization_alias="indexedAt")
@@ -109,6 +107,4 @@ class IndexResultResponse(ResponseModel):
     slug: str
     chunks_created: int = Field(serialization_alias="chunksCreated")
     chunks_removed: int = Field(serialization_alias="chunksRemoved")
-    skipped_reason: str | None = Field(
-        default=None, serialization_alias="skippedReason"
-    )
+    skipped_reason: str | None = Field(default=None, serialization_alias="skippedReason")

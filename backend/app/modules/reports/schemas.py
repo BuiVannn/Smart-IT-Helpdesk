@@ -21,9 +21,7 @@ class RateBucket(ResponseModel):
     accepted: int
     corrected: int
     decided: int
-    acceptance_rate: float | None = Field(
-        default=None, serialization_alias="acceptanceRate"
-    )
+    acceptance_rate: float | None = Field(default=None, serialization_alias="acceptanceRate")
 
 
 class ConfusionCellResponse(ResponseModel):
@@ -48,17 +46,11 @@ class AiAccuracyResponse(ResponseModel):
     accepted: int
     corrected: int
     decided: int
-    acceptance_rate: float | None = Field(
-        default=None, serialization_alias="acceptanceRate"
-    )
-    low_confidence_rate: float | None = Field(
-        default=None, serialization_alias="lowConfidenceRate"
-    )
+    acceptance_rate: float | None = Field(default=None, serialization_alias="acceptanceRate")
+    low_confidence_rate: float | None = Field(default=None, serialization_alias="lowConfidenceRate")
     failure_rate: float | None = Field(default=None, serialization_alias="failureRate")
     avg_latency_ms: int | None = Field(default=None, serialization_alias="avgLatencyMs")
-    avg_confidence: float | None = Field(
-        default=None, serialization_alias="avgConfidence"
-    )
+    avg_confidence: float | None = Field(default=None, serialization_alias="avgConfidence")
     estimated_cost_usd: float = Field(serialization_alias="estimatedCostUsd")
 
     status_breakdown: dict[str, int] = Field(serialization_alias="statusBreakdown")

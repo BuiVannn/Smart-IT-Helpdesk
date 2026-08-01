@@ -100,6 +100,7 @@ def _sse(event: ChatEvent) -> str:
 
 # ── Quản lý phiên ─────────────────────────────────────────────────────
 
+
 @router.post(
     "/sessions",
     response_model=SessionResponse,
@@ -186,6 +187,7 @@ def get_session(
 
 # ── Hỏi đáp theo luồng (SSE) ──────────────────────────────────────────
 
+
 @router.post(
     "/sessions/{session_id}/messages",
     summary="Hỏi trợ lý ảo — trả lời theo luồng SSE (US-23, US-24)",
@@ -234,14 +236,19 @@ async def ask(
                         break
         except Exception as exc:
             logger.exception("lỗi trong luồng trả lời", exc_info=exc)
-            yield _sse(ChatEvent("error", {
-                "code": "UPSTREAM_ERROR",
-                "message": (
-                    "Trợ lý ảo tạm thời không phản hồi. "
-                    "Bạn có thể tạo yêu cầu hỗ trợ để đội IT giúp trực tiếp."
-                ),
-                "canCreateTicket": True,
-            }))
+            yield _sse(
+                ChatEvent(
+                    "error",
+                    {
+                        "code": "UPSTREAM_ERROR",
+                        "message": (
+                            "Trợ lý ảo tạm thời không phản hồi. "
+                            "Bạn có thể tạo yêu cầu hỗ trợ để đội IT giúp trực tiếp."
+                        ),
+                        "canCreateTicket": True,
+                    },
+                )
+            )
 
     return StreamingResponse(
         stream(),

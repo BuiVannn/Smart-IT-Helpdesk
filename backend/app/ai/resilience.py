@@ -9,13 +9,11 @@ import random
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TypeVar
 
 from app.core.exceptions import ExternalServiceError
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
-T = TypeVar("T")
 
 RETRYABLE = (TimeoutError, ConnectionError, asyncio.TimeoutError)
 
@@ -25,10 +23,10 @@ class RetryConfig:
     max_attempts: int = 3
     base_delay: float = 2.0
     multiplier: float = 3.0
-    jitter: float = 0.3   # ±30%
+    jitter: float = 0.3  # ±30%
 
 
-async def with_retry(
+async def with_retry[T](
     func: Callable[[], Awaitable[T]],
     config: RetryConfig | None = None,
     *,
@@ -78,7 +76,7 @@ class CircuitBreaker:
         if self._opened_at is None:
             return False
         if time.monotonic() - self._opened_at >= self.recovery_seconds:
-            self._opened_at = None      # sang trạng thái half-open: cho thử 1 lần
+            self._opened_at = None  # sang trạng thái half-open: cho thử 1 lần
             self._failures = 0
             return False
         return True
@@ -93,7 +91,7 @@ class CircuitBreaker:
             self._opened_at = time.monotonic()
             logger.error(f"Circuit breaker MỞ sau {self._failures} lỗi liên tiếp")
 
-    async def call(self, func: Callable[[], Awaitable[T]], *, operation: str = "call") -> T:
+    async def call[T](self, func: Callable[[], Awaitable[T]], *, operation: str = "call") -> T:
         if self.is_open:
             raise ExternalServiceError(
                 f"{operation}: dịch vụ đang tạm ngưng do lỗi liên tục, thử lại sau"

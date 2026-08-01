@@ -1,0 +1,26 @@
+# Cấu hình quét bí mật cho Smart IT Helpdesk.
+#
+# NGUYÊN TẮC: chỉ bỏ qua ĐÚNG những chuỗi giả đã biết, KHÔNG bỏ qua cả file
+# hay cả luật. Nếu ngày mai có người lỡ commit một JWT_SECRET thật vào
+# conftest.py, gitleaks vẫn phải bắt được — đó chính là lý do có bước này.
+#
+# Bốn báo động giả ban đầu (01/08/2026), tất cả đều là khoá dùng cho test/CI:
+#   .github/workflows/ci.yml            JWT_SECRET: ci-secret-key-...
+#   backend/tests/conftest.py           JWT_SECRET  test-secret-key-...
+#   backend/tests/test_app_boots_standalone.py   nt
+#   tasks/task-31-07-2026.md            trích lại dòng CI ở trên
+#
+# Luật `generic-api-key` bắt theo TÊN BIẾN + độ dài chuỗi, nó không đọc nội
+# dung. Chuỗi thật ở đây tự khai mình là khoá giả nên chỉ cần khớp đúng chúng.
+
+title = "Smart IT Helpdesk"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Khoá giả cố định dùng cho test tự động và cho CI"
+regexTarget = "match"
+regexes = [
+  '''(test|ci|local-dev)-secret-key-at-least-32-characters-long''',
+]

@@ -139,9 +139,7 @@ class TestNoiDungGoiY:
 
         assert len(body["suggestions"]) <= 3
 
-    def test_moi_ung_vien_co_diem_va_ly_do(
-        self, client, login, db, employee, agent, categories
-    ):
+    def test_moi_ung_vien_co_diem_va_ly_do(self, client, login, db, employee, agent, categories):
         ticket = make_ticket(db, employee, categories)
         c = as_user(client, login, agent)
 
@@ -153,9 +151,7 @@ class TestNoiDungGoiY:
             assert item["reason"]
             assert "agentId" in item and "fullName" in item
 
-    def test_khong_lo_email_cua_dong_nghiep(
-        self, client, login, db, employee, agent, categories
-    ):
+    def test_khong_lo_email_cua_dong_nghiep(self, client, login, db, employee, agent, categories):
         """Cùng lý do với `UserBrief`: danh sách này không phải chỗ lộ email."""
         ticket = make_ticket(db, employee, categories)
         c = as_user(client, login, agent)
@@ -170,9 +166,7 @@ class TestNoiDungGoiY:
     ):
         chuyen_gia = make_user(role=UserRole.IT_AGENT, full_name="Chuyên Gia Mạng")
         make_user(role=UserRole.IT_AGENT, full_name="Người Mới")
-        db.add(AgentSkill(
-            agent_id=chuyen_gia.id, category_id=categories["network"].id, level=3
-        ))
+        db.add(AgentSkill(agent_id=chuyen_gia.id, category_id=categories["network"].id, level=3))
         db.flush()
 
         ticket = make_ticket(db, employee, categories, categoryId=str(categories["network"].id))
@@ -195,9 +189,7 @@ class TestNoiDungGoiY:
 
         assert str(khoa.id) not in [s["agentId"] for s in body["suggestions"]]
 
-    def test_agent_ranh_co_tai_bang_khong(
-        self, client, login, db, employee, agent, categories
-    ):
+    def test_agent_ranh_co_tai_bang_khong(self, client, login, db, employee, agent, categories):
         """★ LEFT JOIN không khớp dòng nào ⇒ mọi cột ticket là NULL.
 
         Nếu biểu thức tính tải không loại trừ trường hợp đó, Agent đang rảnh
@@ -213,9 +205,7 @@ class TestNoiDungGoiY:
         assert mine["openTickets"] == 0
         assert mine["weightedLoad"] == 0
 
-    def test_khong_goi_y_nhan_vien_thuong(
-        self, client, login, db, employee, agent, categories
-    ):
+    def test_khong_goi_y_nhan_vien_thuong(self, client, login, db, employee, agent, categories):
         """BR-02: giao cho nhân viên thường nghĩa là ticket rơi vào hố đen."""
         ticket = make_ticket(db, employee, categories)
         c = as_user(client, login, agent)
@@ -241,7 +231,7 @@ class TestNoiDungGoiY:
         giao_cho_agent.status = TicketStatus.ASSIGNED
         db.flush()
 
-        ticket = make_ticket(db, employee, categories)   # chưa phân loại
+        ticket = make_ticket(db, employee, categories)  # chưa phân loại
         c = as_user(client, login, make_user(role=UserRole.ADMIN))
 
         body = c.get(f"{BASE}/{ticket.id}/assignee-suggestions").json()
@@ -307,9 +297,7 @@ class TestAgentSuaPhanLoaiCuaAi:
         assert record.corrected_category_id == categories["hardware"].id
         assert record.corrected_at is not None
 
-    def test_ghi_su_kien_reclassified(
-        self, client, login, db, employee, agent, categories
-    ):
+    def test_ghi_su_kien_reclassified(self, client, login, db, employee, agent, categories):
         ticket = make_ticket(db, employee, categories)
         apply_ai(db, ticket, categories["network"])
         c = as_user(client, login, agent)
@@ -319,12 +307,16 @@ class TestAgentSuaPhanLoaiCuaAi:
             json={"categoryId": str(categories["hardware"].id), "version": ticket.version},
         )
 
-        events = db.execute(
-            select(TicketEvent).where(
-                TicketEvent.ticket_id == ticket.id,
-                TicketEvent.event_type == EventType.RECLASSIFIED,
+        events = (
+            db.execute(
+                select(TicketEvent).where(
+                    TicketEvent.ticket_id == ticket.id,
+                    TicketEvent.event_type == EventType.RECLASSIFIED,
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(events) == 1
         assert events[0].actor_id == agent.id
 
@@ -336,13 +328,15 @@ class TestAgentSuaPhanLoaiCuaAi:
         record = apply_ai(db, ticket, categories["network"])
         c = as_user(client, login, agent)
 
-        c.patch(f"{BASE}/{ticket.id}", json={
-            "categoryId": str(categories["hardware"].id), "version": ticket.version
-        })
+        c.patch(
+            f"{BASE}/{ticket.id}",
+            json={"categoryId": str(categories["hardware"].id), "version": ticket.version},
+        )
         db.refresh(ticket)
-        c.patch(f"{BASE}/{ticket.id}", json={
-            "categoryId": str(categories["network"].id), "version": ticket.version
-        })
+        c.patch(
+            f"{BASE}/{ticket.id}",
+            json={"categoryId": str(categories["network"].id), "version": ticket.version},
+        )
 
         db.refresh(record)
         assert record.was_accepted is None
@@ -357,18 +351,23 @@ class TestAgentSuaPhanLoaiCuaAi:
         """
         ticket = make_ticket(db, employee, categories)
         record = AiClassification(
-            ticket_id=ticket.id, model_name="fake-model", prompt_version="classify-v1.0",
-            suggested_category_id=categories["network"].id, confidence=0.4,
-            reasoning="Không chắc", was_applied=False,
+            ticket_id=ticket.id,
+            model_name="fake-model",
+            prompt_version="classify-v1.0",
+            suggested_category_id=categories["network"].id,
+            confidence=0.4,
+            reasoning="Không chắc",
+            was_applied=False,
         )
         db.add(record)
         ticket.ai_status = AiStatus.LOW_CONFIDENCE
         db.flush()
         c = as_user(client, login, agent)
 
-        c.patch(f"{BASE}/{ticket.id}", json={
-            "categoryId": str(categories["hardware"].id), "version": ticket.version
-        })
+        c.patch(
+            f"{BASE}/{ticket.id}",
+            json={"categoryId": str(categories["hardware"].id), "version": ticket.version},
+        )
 
         db.refresh(record)
         assert record.was_accepted is None
@@ -383,17 +382,24 @@ class TestAgentSuaPhanLoaiCuaAi:
         c = as_user(client, login, agent)
         c.post(f"{BASE}/{ticket.id}/claim", json={"version": ticket.version})
         db.refresh(ticket)
-        c.post(f"{BASE}/{ticket.id}/status",
-               json={"status": TicketStatus.IN_PROGRESS, "version": ticket.version})
+        c.post(
+            f"{BASE}/{ticket.id}/status",
+            json={"status": TicketStatus.IN_PROGRESS, "version": ticket.version},
+        )
         db.refresh(ticket)
-        c.post(f"{BASE}/{ticket.id}/status", json={
-            "status": TicketStatus.RESOLVED,
-            "resolutionNote": "Đã cấu hình lại access point tầng 5",
-            "version": ticket.version,
-        })
+        c.post(
+            f"{BASE}/{ticket.id}/status",
+            json={
+                "status": TicketStatus.RESOLVED,
+                "resolutionNote": "Đã cấu hình lại access point tầng 5",
+                "version": ticket.version,
+            },
+        )
         db.refresh(ticket)
-        response = c.post(f"{BASE}/{ticket.id}/status",
-                          json={"status": TicketStatus.CLOSED, "version": ticket.version})
+        response = c.post(
+            f"{BASE}/{ticket.id}/status",
+            json={"status": TicketStatus.CLOSED, "version": ticket.version},
+        )
 
         assert response.status_code == 200, response.text
         db.refresh(record)
@@ -422,16 +428,15 @@ class TestBaoCaoDoChinhXacAi:
         c = as_user(client, login, agent)
         tomorrow = datetime.now(UTC) + timedelta(days=1)
 
-        body = c.get(f"{REPORTS}/ai-accuracy", params={
-            "from": tomorrow.isoformat(), "to": (tomorrow + timedelta(days=1)).isoformat()
-        }).json()
+        body = c.get(
+            f"{REPORTS}/ai-accuracy",
+            params={"from": tomorrow.isoformat(), "to": (tomorrow + timedelta(days=1)).isoformat()},
+        ).json()
 
         assert body["totalRuns"] == 0
         assert body["acceptanceRate"] is None
 
-    def test_tinh_ti_le_chap_nhan(
-        self, client, login, db, employee, agent, categories
-    ):
+    def test_tinh_ti_le_chap_nhan(self, client, login, db, employee, agent, categories):
         for accepted in (True, True, True, False):
             ticket = make_ticket(db, employee, categories)
             record = apply_ai(db, ticket, categories["network"])
@@ -468,7 +473,7 @@ class TestBaoCaoDoChinhXacAi:
     ):
         ticket = make_ticket(db, employee, categories)
         apply_ai(db, ticket, categories["network"])
-        ticket.category_id = categories["hardware"].id   # Agent đã sửa lại
+        ticket.category_id = categories["hardware"].id  # Agent đã sửa lại
         db.flush()
         c = as_user(client, login, agent)
 

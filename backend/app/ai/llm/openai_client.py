@@ -89,11 +89,13 @@ class OpenAiLlmClient:
             usage = body.get("usage", {})
             latency = round((time.perf_counter() - started) * 1000)
 
-            cost_guard.record(UsageRecord(
-                model=self._model,
-                prompt_tokens=usage.get("prompt_tokens", 0),
-                completion_tokens=usage.get("completion_tokens", 0),
-            ))
+            cost_guard.record(
+                UsageRecord(
+                    model=self._model,
+                    prompt_tokens=usage.get("prompt_tokens", 0),
+                    completion_tokens=usage.get("completion_tokens", 0),
+                )
+            )
 
             parsed: dict[str, Any] | None = None
             if schema is not None:
@@ -117,9 +119,7 @@ class OpenAiLlmClient:
             operation="llm.complete",
         )
 
-    async def stream(
-        self, *, system: str, user: str, max_tokens: int = 800
-    ) -> AsyncIterator[str]:
+    async def stream(self, *, system: str, user: str, max_tokens: int = 800) -> AsyncIterator[str]:
         """Sinh câu trả lời theo luồng — người dùng thấy token đầu tiên < 3 giây.
 
         KHÔNG retry ở đây: một khi đã bắt đầu stream mà lỗi giữa chừng thì

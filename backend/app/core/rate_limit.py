@@ -48,7 +48,7 @@ class MemoryAttemptStore:
         now = time.monotonic()
         with self._lock:
             count, expires_at = self._data.get(key, (0, 0.0))
-            if expires_at <= now:            # cửa sổ cũ đã hết hạn ⇒ đếm lại từ đầu
+            if expires_at <= now:  # cửa sổ cũ đã hết hạn ⇒ đếm lại từ đầu
                 count, expires_at = 0, now + window_seconds
             count += 1
             self._data[key] = (count, expires_at)

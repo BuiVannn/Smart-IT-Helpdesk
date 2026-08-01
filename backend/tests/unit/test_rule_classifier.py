@@ -84,7 +84,7 @@ class TestPhanLoaiTheoTuKhoa:
         assert RULE_CONFIDENCE < 0.6
 
     def test_bao_mat_thang_phan_cung(self, rules):
-        """"Máy tính dính virus" phải vào `security`, không phải `hardware`.
+        """ "Máy tính dính virus" phải vào `security`, không phải `hardware`.
 
         Cả hai luật đều khớp; luật bảo mật đứng trước nên thắng khi hoà.
         """
@@ -105,14 +105,12 @@ class TestPhanLoaiTheoTuKhoa:
         assert suggestion.category_slug == "access"
 
     def test_ranh_gioi_tu_khong_khop_bua(self, rules):
-        """"mang" không được khớp bên trong một từ khác.
+        """ "mang" không được khớp bên trong một từ khác.
 
         Không có ranh giới từ, mọi mô tả chứa "mangan", "khoảng" (sau khi bỏ
         dấu) đều bị gán vào `network`.
         """
-        suggestion = rules.classify(
-            "Đặt mua hoá chất", "Cần mua mangan cho phòng thí nghiệm"
-        )
+        suggestion = rules.classify("Đặt mua hoá chất", "Cần mua mangan cho phòng thí nghiệm")
         assert suggestion is None or suggestion.category_slug != "network"
 
     def test_ly_do_neu_ro_tu_khoa_da_khop(self, rules):
@@ -173,7 +171,7 @@ class TestFakeLlmKhongDinhVaoDanhSachCategory:
         assert result["category_slug"] == expected
 
     def test_bao_mat_thang_phan_mem_trong_fake_llm(self):
-        """"Phần mềm diệt virus báo phát hiện mã độc" khớp cả hai luật.
+        """ "Phần mềm diệt virus báo phát hiện mã độc" khớp cả hai luật.
 
         Luật khớp đầu tiên thắng, nên bảo mật phải đứng đầu bảng — nếu không,
         một sự cố mã độc bị xếp vào `software` và đi sai hàng chờ.

@@ -139,10 +139,14 @@ class TestApDungKetQua:
         assert ticket.category_id is None
         assert ticket.ai_status == AiStatus.PENDING
 
-        llm = ScriptedLlm({
-            "category_slug": "network", "priority": "HIGH",
-            "confidence": 0.93, "reasoning": "Mô tả nêu rõ không vào được WiFi",
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "network",
+                "priority": "HIGH",
+                "confidence": 0.93,
+                "reasoning": "Mô tả nêu rõ không vào được WiFi",
+            }
+        )
         outcome = await build(db, llm).classify(ticket.id)
 
         assert outcome.ai_status == AiStatus.APPLIED
@@ -153,10 +157,14 @@ class TestApDungKetQua:
 
     async def test_ghi_ban_ghi_ai_classifications(self, db, make_ticket):
         ticket = make_ticket()
-        llm = ScriptedLlm({
-            "category_slug": "network", "priority": "HIGH",
-            "confidence": 0.93, "reasoning": "Rõ ràng là sự cố mạng",
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "network",
+                "priority": "HIGH",
+                "confidence": 0.93,
+                "reasoning": "Rõ ràng là sự cố mạng",
+            }
+        )
 
         await build(db, llm).classify(ticket.id)
 
@@ -172,19 +180,27 @@ class TestApDungKetQua:
     async def test_ghi_su_kien_voi_actor_type_ai(self, db, make_ticket):
         """AC US-17: hành động của AI phải phân biệt được với hành động của người."""
         ticket = make_ticket()
-        llm = ScriptedLlm({
-            "category_slug": "network", "priority": "HIGH",
-            "confidence": 0.9, "reasoning": "Sự cố mạng",
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "network",
+                "priority": "HIGH",
+                "confidence": 0.9,
+                "reasoning": "Sự cố mạng",
+            }
+        )
 
         await build(db, llm).classify(ticket.id)
 
-        events = db.execute(
-            select(TicketEvent).where(
-                TicketEvent.ticket_id == ticket.id,
-                TicketEvent.event_type == EventType.AI_CLASSIFIED,
+        events = (
+            db.execute(
+                select(TicketEvent).where(
+                    TicketEvent.ticket_id == ticket.id,
+                    TicketEvent.event_type == EventType.AI_CLASSIFIED,
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(events) == 1
         assert events[0].actor_type == ActorType.AI
         assert events[0].actor_id is None
@@ -200,10 +216,14 @@ class TestApDungKetQua:
         han_cu = ticket.sla_resolution_due_at
         assert ticket.priority == TicketPriority.MEDIUM
 
-        llm = ScriptedLlm({
-            "category_slug": "security", "priority": "URGENT",
-            "confidence": 0.97, "reasoning": "Dấu hiệu sự cố bảo mật",
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "security",
+                "priority": "URGENT",
+                "confidence": 0.97,
+                "reasoning": "Dấu hiệu sự cố bảo mật",
+            }
+        )
         await build(db, llm).classify(ticket.id)
 
         db.refresh(ticket)
@@ -213,10 +233,14 @@ class TestApDungKetQua:
     async def test_tang_version_de_khoa_lac_quan_khong_bi_qua_mat(self, db, make_ticket):
         ticket = make_ticket()
         version_cu = ticket.version
-        llm = ScriptedLlm({
-            "category_slug": "network", "priority": "HIGH",
-            "confidence": 0.9, "reasoning": "Sự cố mạng",
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "network",
+                "priority": "HIGH",
+                "confidence": 0.9,
+                "reasoning": "Sự cố mạng",
+            }
+        )
 
         await build(db, llm).classify(ticket.id)
 
@@ -231,10 +255,14 @@ class TestKhongGhiDePhanLoaiCuaNguoi:
         ticket = make_ticket(categoryId=str(categories["hardware"].id))
         assert ticket.category_id == categories["hardware"].id
 
-        llm = ScriptedLlm({
-            "category_slug": "network", "priority": "URGENT",
-            "confidence": 0.99, "reasoning": "AI rất tự tin nhưng vẫn không được đè",
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "network",
+                "priority": "URGENT",
+                "confidence": 0.99,
+                "reasoning": "AI rất tự tin nhưng vẫn không được đè",
+            }
+        )
         outcome = await build(db, llm).classify(ticket.id)
 
         assert outcome.ai_status == AiStatus.SKIPPED
@@ -245,10 +273,14 @@ class TestKhongGhiDePhanLoaiCuaNguoi:
     async def test_van_ghi_lai_goi_y_de_so_sanh(self, db, make_ticket, categories):
         """AC US-19: "AI vẫn chạy để ghi nhận kết quả so sánh"."""
         ticket = make_ticket(categoryId=str(categories["hardware"].id))
-        llm = ScriptedLlm({
-            "category_slug": "network", "priority": "HIGH",
-            "confidence": 0.88, "reasoning": "Theo AI thì đây là sự cố mạng",
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "network",
+                "priority": "HIGH",
+                "confidence": 0.88,
+                "reasoning": "Theo AI thì đây là sự cố mạng",
+            }
+        )
 
         await build(db, llm).classify(ticket.id)
 
@@ -263,10 +295,14 @@ class TestDoTinCayThap:
 
     async def test_khong_ap_dung_khi_duoi_nguong(self, db, make_ticket):
         ticket = make_ticket()
-        llm = ScriptedLlm({
-            "category_slug": "network", "priority": "HIGH",
-            "confidence": 0.45, "reasoning": "Mô tả mơ hồ, có thể là mạng",
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "network",
+                "priority": "HIGH",
+                "confidence": 0.45,
+                "reasoning": "Mô tả mơ hồ, có thể là mạng",
+            }
+        )
 
         outcome = await build(db, llm).classify(ticket.id)
 
@@ -277,10 +313,14 @@ class TestDoTinCayThap:
 
     async def test_van_luu_goi_y_cho_agent_tham_khao(self, db, make_ticket, categories):
         ticket = make_ticket()
-        llm = ScriptedLlm({
-            "category_slug": "network", "priority": "HIGH",
-            "confidence": 0.45, "reasoning": "Có thể là mạng",
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "network",
+                "priority": "HIGH",
+                "confidence": 0.45,
+                "reasoning": "Có thể là mạng",
+            }
+        )
 
         await build(db, llm).classify(ticket.id)
 
@@ -293,10 +333,14 @@ class TestDoTinCayThap:
     async def test_nguong_doc_tu_cau_hinh_khong_hardcode(self, db, make_ticket):
         """AC US-19: "Ngưỡng này để trong config, không hardcode"."""
         ticket = make_ticket()
-        llm = ScriptedLlm({
-            "category_slug": "network", "priority": "HIGH",
-            "confidence": 0.45, "reasoning": "Mơ hồ",
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "network",
+                "priority": "HIGH",
+                "confidence": 0.45,
+                "reasoning": "Mơ hồ",
+            }
+        )
 
         outcome = await build(db, llm, confidence_threshold=0.3).classify(ticket.id)
 
@@ -368,10 +412,14 @@ class TestKhongTinDauRaCuaLlm:
 
     async def test_slug_khong_ton_tai_bi_tu_choi(self, db, make_ticket):
         ticket = make_ticket()
-        llm = ScriptedLlm({
-            "category_slug": "khong-he-ton-tai", "priority": "HIGH",
-            "confidence": 0.99, "reasoning": "Bịa ra một loại sự cố",
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "khong-he-ton-tai",
+                "priority": "HIGH",
+                "confidence": 0.99,
+                "reasoning": "Bịa ra một loại sự cố",
+            }
+        )
 
         outcome = await build(db, llm).classify(ticket.id)
 
@@ -384,14 +432,25 @@ class TestKhongTinDauRaCuaLlm:
     @pytest.mark.parametrize(
         "payload",
         [
-            {"category_slug": "network", "priority": "SIÊU_GẤP", "confidence": 0.9,
-             "reasoning": "mức ưu tiên bịa"},
-            {"category_slug": "network", "priority": "HIGH", "confidence": 1.7,
-             "reasoning": "confidence ngoài khoảng"},
-            {"category_slug": "network", "priority": "HIGH", "confidence": "cao",
-             "reasoning": "confidence không phải số"},
-            {"category_slug": "network", "priority": "HIGH",
-             "reasoning": "thiếu hẳn confidence"},
+            {
+                "category_slug": "network",
+                "priority": "SIÊU_GẤP",
+                "confidence": 0.9,
+                "reasoning": "mức ưu tiên bịa",
+            },
+            {
+                "category_slug": "network",
+                "priority": "HIGH",
+                "confidence": 1.7,
+                "reasoning": "confidence ngoài khoảng",
+            },
+            {
+                "category_slug": "network",
+                "priority": "HIGH",
+                "confidence": "cao",
+                "reasoning": "confidence không phải số",
+            },
+            {"category_slug": "network", "priority": "HIGH", "reasoning": "thiếu hẳn confidence"},
         ],
     )
     async def test_du_lieu_di_dang_bi_tu_choi(self, db, make_ticket, payload):
@@ -405,10 +464,14 @@ class TestKhongTinDauRaCuaLlm:
 
     async def test_reasoning_dai_bi_cat_va_lam_sach(self, db, make_ticket):
         ticket = make_ticket()
-        llm = ScriptedLlm({
-            "category_slug": "network", "priority": "HIGH", "confidence": 0.9,
-            "reasoning": "x" * 900,
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "network",
+                "priority": "HIGH",
+                "confidence": 0.9,
+                "reasoning": "x" * 900,
+            }
+        )
 
         await build(db, llm).classify(ticket.id)
 
@@ -426,10 +489,14 @@ class TestChayLaiAnToan:
         vừa sửa tay.
         """
         ticket = make_ticket()
-        llm = ScriptedLlm({
-            "category_slug": "network", "priority": "HIGH",
-            "confidence": 0.9, "reasoning": "Sự cố mạng",
-        })
+        llm = ScriptedLlm(
+            {
+                "category_slug": "network",
+                "priority": "HIGH",
+                "confidence": 0.9,
+                "reasoning": "Sự cố mạng",
+            }
+        )
         classifier = build(db, llm)
 
         await classifier.classify(ticket.id)
@@ -439,9 +506,11 @@ class TestChayLaiAnToan:
 
         assert llm.calls == 1, "lượt thứ hai không được gọi LLM nữa"
         assert outcome.ai_status == AiStatus.APPLIED
-        records = db.execute(
-            select(AiClassification).where(AiClassification.ticket_id == ticket.id)
-        ).scalars().all()
+        records = (
+            db.execute(select(AiClassification).where(AiClassification.ticket_id == ticket.id))
+            .scalars()
+            .all()
+        )
         assert len(records) == 1
 
     async def test_ticket_khong_ton_tai_khong_lam_no_worker(self, db):

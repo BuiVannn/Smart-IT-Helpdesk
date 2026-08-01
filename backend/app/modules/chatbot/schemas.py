@@ -47,9 +47,7 @@ class SessionResponse(ResponseModel):
     message_count: int = Field(serialization_alias="messageCount")
     led_to_ticket: bool = Field(serialization_alias="ledToTicket")
     created_at: datetime = Field(serialization_alias="createdAt")
-    last_message_at: datetime | None = Field(
-        default=None, serialization_alias="lastMessageAt"
-    )
+    last_message_at: datetime | None = Field(default=None, serialization_alias="lastMessageAt")
 
 
 class SessionDetailResponse(SessionResponse):

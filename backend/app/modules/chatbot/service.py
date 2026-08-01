@@ -81,9 +81,9 @@ class ChatService:
         """
         question = question.strip()[:MAX_QUESTION_LENGTH]
         if not question:
-            yield ChatEvent("error", {
-                "code": "VALIDATION_ERROR", "message": "Câu hỏi không được để trống"
-            })
+            yield ChatEvent(
+                "error", {"code": "VALIDATION_ERROR", "message": "Câu hỏi không được để trống"}
+            )
             return
 
         chat_session = self._get_session(session_id, user_id)
@@ -119,24 +119,32 @@ class ChatService:
         if not retrieval.has_context:
             logger.info(
                 "không tìm thấy tài liệu liên quan",
-                extra={"extra_fields": {
-                    "question": question[:120], "top_score": round(retrieval.top_score, 4)
-                }},
+                extra={
+                    "extra_fields": {
+                        "question": question[:120],
+                        "top_score": round(retrieval.top_score, 4),
+                    }
+                },
             )
             yield ChatEvent("citations", {"citations": []})
             yield ChatEvent("token", {"delta": NO_CONTEXT_ANSWER})
             message = self._save_message(
-                chat_session, MessageRole.ASSISTANT, NO_CONTEXT_ANSWER,
+                chat_session,
+                MessageRole.ASSISTANT,
+                NO_CONTEXT_ANSWER,
                 no_context_found=True,
                 latency_ms=round((time.perf_counter() - started) * 1000),
             )
             self.db.commit()
-            yield ChatEvent("done", {
-                "messageId": str(message.id),
-                "noContextFound": True,
-                "canCreateTicket": True,
-                "latencyMs": message.latency_ms,
-            })
+            yield ChatEvent(
+                "done",
+                {
+                    "messageId": str(message.id),
+                    "noContextFound": True,
+                    "canCreateTicket": True,
+                    "latencyMs": message.latency_ms,
+                },
+            )
             return
 
         # ── Gửi trích dẫn TRƯỚC khi sinh câu trả lời ──
@@ -176,12 +184,15 @@ class ChatService:
         self._save_citations(message, retrieval.chunks)
         self.db.commit()
 
-        yield ChatEvent("done", {
-            "messageId": str(message.id),
-            "noContextFound": False,
-            "latencyMs": latency,
-            "promptVersion": RAG_PROMPT_VERSION,
-        })
+        yield ChatEvent(
+            "done",
+            {
+                "messageId": str(message.id),
+                "noContextFound": False,
+                "latencyMs": latency,
+                "promptVersion": RAG_PROMPT_VERSION,
+            },
+        )
 
     # ── Nội bộ ────────────────────────────────────────────────────────
 
@@ -194,12 +205,16 @@ class ChatService:
 
     def _recent_history(self, session_id: UUID) -> list[tuple[str, str]]:
         """Lấy các lượt gần nhất, KHÔNG tính câu hỏi vừa lưu."""
-        rows = self.db.execute(
-            select(ChatMessage)
-            .where(ChatMessage.session_id == session_id)
-            .order_by(ChatMessage.created_at.desc())
-            .limit(HISTORY_TURNS * 2 + 1)
-        ).scalars().all()
+        rows = (
+            self.db.execute(
+                select(ChatMessage)
+                .where(ChatMessage.session_id == session_id)
+                .order_by(ChatMessage.created_at.desc())
+                .limit(HISTORY_TURNS * 2 + 1)
+            )
+            .scalars()
+            .all()
+        )
         # Bỏ câu hỏi vừa lưu (phần tử mới nhất), đảo lại thứ tự thời gian
         return [(m.role.value, m.content) for m in reversed(rows[1:])]
 
@@ -246,25 +261,30 @@ class ChatService:
         return message
 
     def _save_citations(self, message: ChatMessage, chunks) -> None:
-        self.db.add_all([
-            ChatCitation(
-                message_id=message.id,
-                article_id=UUID(chunk.article_id),
-                score=round(chunk.score, 4),
-                rank=chunk.rank,
-            )
-            for chunk in chunks
-        ])
+        self.db.add_all(
+            [
+                ChatCitation(
+                    message_id=message.id,
+                    article_id=UUID(chunk.article_id),
+                    score=round(chunk.score, 4),
+                    rank=chunk.rank,
+                )
+                for chunk in chunks
+            ]
+        )
         self.db.flush()
 
     @staticmethod
     def _error_event() -> ChatEvent:
         """Thông điệp thân thiện, KHÔNG lộ chi tiết kỹ thuật ra người dùng."""
-        return ChatEvent("error", {
-            "code": ExternalServiceError.code,
-            "message": (
-                "Trợ lý ảo tạm thời không phản hồi. "
-                "Bạn có thể tạo yêu cầu hỗ trợ để đội IT giúp trực tiếp."
-            ),
-            "canCreateTicket": True,
-        })
+        return ChatEvent(
+            "error",
+            {
+                "code": ExternalServiceError.code,
+                "message": (
+                    "Trợ lý ảo tạm thời không phản hồi. "
+                    "Bạn có thể tạo yêu cầu hỗ trợ để đội IT giúp trực tiếp."
+                ),
+                "canCreateTicket": True,
+            },
+        )

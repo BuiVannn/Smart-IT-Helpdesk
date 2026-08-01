@@ -45,9 +45,7 @@ def session_id(auth_client) -> str:
 
 
 def ask(client, session_id: str, question: str) -> list[tuple[str, dict]]:
-    response = client.post(
-        f"{BASE}/sessions/{session_id}/messages", json={"question": question}
-    )
+    response = client.post(f"{BASE}/sessions/{session_id}/messages", json={"question": question})
     assert response.status_code == 200, response.text
     assert response.headers["content-type"].startswith("text/event-stream")
     return parse_sse(response.text)
@@ -98,9 +96,7 @@ class TestQuanLyPhien:
 
         client.headers.pop("Authorization", None)
         login(make_user())
-        response = client.post(
-            f"{BASE}/sessions/{sid}/messages", json={"question": "wifi"}
-        )
+        response = client.post(f"{BASE}/sessions/{sid}/messages", json={"question": "wifi"})
         assert response.status_code == 404
 
 
@@ -119,9 +115,7 @@ class TestLuongSSE:
         assert names[-1] == "done"
         assert "token" in names
 
-    def test_token_chua_xuong_dong_khong_lam_vo_khung(
-        self, auth_client, session_id, seeded_kb
-    ):
+    def test_token_chua_xuong_dong_khong_lam_vo_khung(self, auth_client, session_id, seeded_kb):
         """★ Nếu quên escape "\\n" trong `data:`, một token xuống dòng sẽ cắt
         đôi khung và trình duyệt hiểu sai toàn bộ phần còn lại của luồng."""
         events = ask(auth_client, session_id, "hướng dẫn cài đặt máy in")
@@ -156,9 +150,7 @@ class TestLuongSSE:
         finally:
             db.commit = original
 
-        assert commits, (
-            "ChatService không commit lần nào — hội thoại sẽ mất khi session đóng"
-        )
+        assert commits, "ChatService không commit lần nào — hội thoại sẽ mất khi session đóng"
 
     def test_cap_nhat_moc_nhan_tin_cuoi(self, auth_client, session_id, seeded_kb):
         """Thiếu `last_message_at` thì danh sách phiên sắp xếp theo ngày TẠO,
@@ -168,9 +160,7 @@ class TestLuongSSE:
         assert detail["lastMessageAt"] is not None
 
     def test_cau_hoi_rong_bi_tu_choi_o_tang_schema(self, auth_client, session_id):
-        response = auth_client.post(
-            f"{BASE}/sessions/{session_id}/messages", json={"question": ""}
-        )
+        response = auth_client.post(f"{BASE}/sessions/{session_id}/messages", json={"question": ""})
         assert response.status_code == 422
 
     def test_cau_hoi_qua_dai_bi_tu_choi(self, auth_client, session_id):

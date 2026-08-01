@@ -79,10 +79,14 @@ class Retriever:
 
         vector = (await self.embedding.embed([query]))[0]
 
-        rows = self.session.execute(
-            RETRIEVAL_SQL,
-            {"query_vector": str(vector), "top_k": self.top_k},
-        ).mappings().all()
+        rows = (
+            self.session.execute(
+                RETRIEVAL_SQL,
+                {"query_vector": str(vector), "top_k": self.top_k},
+            )
+            .mappings()
+            .all()
+        )
 
         if not rows:
             logger.warning("kho tài liệu rỗng — chưa có chunk nào được index")
@@ -91,9 +95,7 @@ class Retriever:
         top_score = float(rows[0]["score"])
 
         # Lọc theo ngưỡng, giữ tối đa max_context_chunks
-        kept = [r for r in rows if float(r["score"]) >= self.threshold][
-            : self.max_context_chunks
-        ]
+        kept = [r for r in rows if float(r["score"]) >= self.threshold][: self.max_context_chunks]
 
         chunks = [
             RetrievedChunk(
@@ -109,18 +111,18 @@ class Retriever:
 
         logger.info(
             "truy xuất tài liệu",
-            extra={"extra_fields": {
-                "candidates": len(rows),
-                "kept": len(chunks),
-                "top_score": round(top_score, 4),
-                "threshold": self.threshold,
-                "has_context": bool(chunks),
-            }},
+            extra={
+                "extra_fields": {
+                    "candidates": len(rows),
+                    "kept": len(chunks),
+                    "top_score": round(top_score, 4),
+                    "threshold": self.threshold,
+                    "has_context": bool(chunks),
+                }
+            },
         )
 
-        return RetrievalResult(
-            chunks=chunks, top_score=top_score, total_candidates=len(rows)
-        )
+        return RetrievalResult(chunks=chunks, top_score=top_score, total_candidates=len(rows))
 
     def chunk_ids_of(self, result: RetrievalResult) -> list[str]:
         """Tiện ích cho tầng gọi khi cần lưu trích dẫn."""
