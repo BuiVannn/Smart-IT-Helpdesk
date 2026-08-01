@@ -1,13 +1,16 @@
 """Schema của module báo cáo.
 
-★ CÒN TRỐNG, THUỘC VỀ NGƯỜI KHÁC — đừng viết chồng lên. Hiện chỉ có
-`ai-accuracy` (US-22). Các báo cáo còn lại là của Trần Tiến Dũng:
+`ai-accuracy` (US-22) thuộc F3; phần còn lại là F7 — dashboard vận hành:
 `/reports/overview` (US-37), `/reports/resolution-time` (US-38),
-`/reports/agent-workload` (US-39), `/reports/tickets/export` (US-40),
-`/reports/satisfaction` (US-42).
+`/reports/agent-workload` (US-39), `/reports/tickets/export` (US-40).
+
+`/reports/satisfaction` (US-42) vẫn còn trống — nó thuộc F8, và chưa có
+đường nào ghi vào bảng `ticket_ratings` nên báo cáo đó chưa có dữ liệu để
+đọc. Bảng workload đã sẵn cột điểm hài lòng, sẽ tự có số khi F8 xong.
 """
 
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import Field
 
@@ -60,3 +63,85 @@ class AiAccuracyResponse(ResponseModel):
 
     generated_at: datetime = Field(serialization_alias="generatedAt")
     cached: bool = False
+
+
+# ── F7 — Dashboard vận hành ───────────────────────────────────────────
+
+
+class CountBucketResponse(ResponseModel):
+    """Một cột trong biểu đồ. `label` là tiếng Việt sẵn sàng để vẽ."""
+
+    key: str
+    label: str
+    count: int
+
+
+class OverviewResponse(ResponseModel):
+    """US-37 — con số để trả lời "đội IT đang thế nào" trong một màn hình."""
+
+    from_at: datetime = Field(serialization_alias="from")
+    to_at: datetime = Field(serialization_alias="to")
+    total: int
+    open_total: int = Field(serialization_alias="openTotal")
+    resolved_total: int = Field(serialization_alias="resolvedTotal")
+    breached_total: int = Field(serialization_alias="breachedTotal")
+    unassigned_total: int = Field(serialization_alias="unassignedTotal")
+    breach_rate: float | None = Field(default=None, serialization_alias="breachRate")
+    by_status: list[CountBucketResponse] = Field(serialization_alias="byStatus")
+    by_priority: list[CountBucketResponse] = Field(serialization_alias="byPriority")
+    by_category: list[CountBucketResponse] = Field(serialization_alias="byCategory")
+    daily: list[CountBucketResponse]
+    generated_at: datetime = Field(serialization_alias="generatedAt")
+    cached: bool = False
+
+
+class DurationRowResponse(ResponseModel):
+    """US-38 — một loại sự cố. Đơn vị là PHÚT, ghi rõ trong tên field để
+    frontend không phải đoán và không ai chia nhầm 60 lần."""
+
+    key: str
+    label: str
+    tickets: int
+    first_response_p50_minutes: float | None = Field(
+        default=None, serialization_alias="firstResponseP50Minutes"
+    )
+    first_response_p90_minutes: float | None = Field(
+        default=None, serialization_alias="firstResponseP90Minutes"
+    )
+    resolution_p50_minutes: float | None = Field(
+        default=None, serialization_alias="resolutionP50Minutes"
+    )
+    resolution_p90_minutes: float | None = Field(
+        default=None, serialization_alias="resolutionP90Minutes"
+    )
+
+
+class ResolutionTimeResponse(ResponseModel):
+    from_at: datetime = Field(serialization_alias="from")
+    to_at: datetime = Field(serialization_alias="to")
+    rows: list[DurationRowResponse]
+    generated_at: datetime = Field(serialization_alias="generatedAt")
+
+
+class AgentWorkloadRowResponse(ResponseModel):
+    """US-39 — một IT Agent."""
+
+    agent_id: UUID = Field(serialization_alias="agentId")
+    agent_name: str = Field(serialization_alias="agentName")
+    open_tickets: int = Field(serialization_alias="openTickets")
+    urgent_open: int = Field(serialization_alias="urgentOpen")
+    resolved_in_period: int = Field(serialization_alias="resolvedInPeriod")
+    avg_resolution_minutes: float | None = Field(
+        default=None, serialization_alias="avgResolutionMinutes"
+    )
+    sla_breached: int = Field(serialization_alias="slaBreached")
+    sla_breach_rate: float | None = Field(default=None, serialization_alias="slaBreachRate")
+    avg_rating: float | None = Field(default=None, serialization_alias="avgRating")
+    rating_count: int = Field(serialization_alias="ratingCount")
+
+
+class AgentWorkloadResponse(ResponseModel):
+    from_at: datetime = Field(serialization_alias="from")
+    to_at: datetime = Field(serialization_alias="to")
+    rows: list[AgentWorkloadRowResponse]
+    generated_at: datetime = Field(serialization_alias="generatedAt")

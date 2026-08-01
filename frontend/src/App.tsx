@@ -1,10 +1,24 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
+import { UsersPage } from '@/features/admin/UsersPage'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { LoadingBlock } from '@/components/ui'
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 import { ChatPage } from '@/features/chat/ChatPage'
+
+/**
+ * Dashboard tải theo yêu cầu vì `recharts` nặng ~500 kB.
+ *
+ * Chỉ Admin mở màn hình này, nhưng nếu import tĩnh thì MỌI người dùng — kể cả
+ * nhân viên chỉ vào tạo một ticket — đều phải tải chỗ đó về trước khi thấy
+ * được gì. Tách ra giữ gói chính nhẹ cho đúng nhóm đông nhất.
+ */
+const DashboardPage = lazy(() =>
+  import('@/features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })),
+)
 import { CreateTicketPage } from '@/features/tickets/CreateTicketPage'
 import { MyTicketsPage } from '@/features/tickets/MyTicketsPage'
 import { QueuePage } from '@/features/tickets/QueuePage'
@@ -75,12 +89,21 @@ export default function App() {
 
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/kb" element={<Placeholder title="Tài liệu hướng dẫn" />} />
-              <Route path="/dashboard" element={<Placeholder title="Báo cáo" />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute roles={['ADMIN']}>
+                    <Suspense fallback={<LoadingBlock label="Đang tải báo cáo…" />}>
+                      <DashboardPage />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/admin/users"
                 element={
                   <ProtectedRoute roles={['ADMIN']}>
-                    <Placeholder title="Quản trị người dùng" />
+                    <UsersPage />
                   </ProtectedRoute>
                 }
               />

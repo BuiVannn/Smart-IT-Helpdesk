@@ -3,13 +3,36 @@
 import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Annotated, Any
 
 import bcrypt
 from jose import JWTError, jwt
+from pydantic import AfterValidator, Field
 
 from app.core.config import settings
 from app.core.exceptions import UnauthenticatedError
+
+
+def check_password_policy(v: str) -> str:
+    if not any(c.isupper() for c in v):
+        raise ValueError("Mật khẩu phải có ít nhất 1 chữ hoa")
+    if not any(c.islower() for c in v):
+        raise ValueError("Mật khẩu phải có ít nhất 1 chữ thường")
+    if not any(c.isdigit() for c in v):
+        raise ValueError("Mật khẩu phải có ít nhất 1 chữ số")
+    return v
+
+
+# ★ Chính sách mật khẩu khai báo ĐÚNG MỘT chỗ rồi dùng lại ở mọi nơi có nhận
+# mật khẩu: đăng ký, đổi mật khẩu, và Admin tạo tài khoản hộ (US-07). Ba chỗ
+# kiểm tra khác nhau là cách kinh điển để mật khẩu yếu lọt qua đường vòng.
+#
+# Nằm ở `core` chứ không nằm ở `modules/auth`: module `users` cũng cần nó, mà
+# `auth/schemas.py` đã import `users/schemas.py` rồi — đặt ở auth thì thành
+# vòng import, và vòng import chỉ nổ lúc khởi động thật.
+Password = Annotated[
+    str, Field(min_length=8, max_length=128), AfterValidator(check_password_policy)
+]
 
 # Dùng thư viện `bcrypt` TRỰC TIẾP thay vì passlib.
 # Lý do: passlib ngừng bảo trì từ 2020 và không tương thích bcrypt >= 4.1

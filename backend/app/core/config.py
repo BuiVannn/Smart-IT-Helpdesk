@@ -89,6 +89,16 @@ class Settings(BaseSettings):
     BUSINESS_HOUR_START: float = 8.5
     BUSINESS_HOUR_END: float = 17.5
 
+    # F6 — Thông báo (US-33 → US-36)
+    # Cửa sổ chống lặp: cùng người nhận + cùng loại + cùng đối tượng trong
+    # khoảng này thì chỉ sinh MỘT thông báo. Xem notifications/service.py để
+    # biết vì sao là "chống lặp" chứ không phải "gộp".
+    NOTIFY_DEDUP_MINUTES: int = Field(default=5, gt=0)
+    # Job quét SLA xử lý tối đa bao nhiêu ticket mỗi lần chạy. Có trần để một
+    # lần chạy không bao giờ vượt `task_time_limit`; phần dư chờ lượt sau,
+    # muộn nhất 5 phút.
+    SLA_MONITOR_BATCH_SIZE: int = Field(default=200, gt=0)
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]

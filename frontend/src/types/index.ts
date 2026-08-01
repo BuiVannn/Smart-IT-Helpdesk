@@ -224,3 +224,112 @@ export interface ApiErrorBody {
     requestId: string
   }
 }
+
+/* ── F6 — Thông báo (US-33 → US-36) ─────────────────────────────── */
+
+export type NotificationType =
+  | 'TICKET_ASSIGNED' | 'TICKET_STATUS_CHANGED' | 'TICKET_COMMENTED'
+  | 'TICKET_RESOLVED' | 'SLA_AT_RISK' | 'SLA_BREACHED' | 'RATING_REQUESTED'
+
+export interface AppNotification {
+  id: string
+  type: NotificationType
+  title: string
+  body: string | null
+  /** `entityType` + `entityId` để tự dựng đường dẫn — backend cố tình KHÔNG
+   *  trả URL sẵn, vì thông báo cũ sẽ trỏ sai khi frontend đổi route. */
+  entityType: string | null
+  entityId: string | null
+  isRead: boolean
+  readAt: string | null
+  createdAt: string
+}
+
+/* ── US-07 — Quản trị người dùng ────────────────────────────────── */
+
+export interface Department {
+  id: string
+  code: string
+  name: string
+}
+
+export interface AdminUser extends UserBrief {
+  email: string
+  department: Department | null
+  phone: string | null
+  isActive: boolean
+  lastLoginAt: string | null
+  createdAt: string
+}
+
+export interface CreateUserInput {
+  email: string
+  password: string
+  fullName: string
+  role: UserRole
+  departmentId?: string | null
+  phone?: string | null
+}
+
+/* ── F7 — Dashboard (US-37 → US-40) ─────────────────────────────── */
+
+export interface CountBucket {
+  key: string
+  label: string
+  count: number
+}
+
+export interface Overview {
+  from: string
+  to: string
+  total: number
+  openTotal: number
+  resolvedTotal: number
+  breachedTotal: number
+  unassignedTotal: number
+  /** `null` = chưa có ticket nào, KHÁC với 0 = không vi phạm lần nào. */
+  breachRate: number | null
+  byStatus: CountBucket[]
+  byPriority: CountBucket[]
+  byCategory: CountBucket[]
+  daily: CountBucket[]
+  generatedAt: string
+  cached: boolean
+}
+
+export interface DurationRow {
+  key: string
+  label: string
+  tickets: number
+  firstResponseP50Minutes: number | null
+  firstResponseP90Minutes: number | null
+  resolutionP50Minutes: number | null
+  resolutionP90Minutes: number | null
+}
+
+export interface ResolutionTimeReport {
+  from: string
+  to: string
+  rows: DurationRow[]
+  generatedAt: string
+}
+
+export interface AgentWorkloadRow {
+  agentId: string
+  agentName: string
+  openTickets: number
+  urgentOpen: number
+  resolvedInPeriod: number
+  avgResolutionMinutes: number | null
+  slaBreached: number
+  slaBreachRate: number | null
+  avgRating: number | null
+  ratingCount: number
+}
+
+export interface AgentWorkloadReport {
+  from: string
+  to: string
+  rows: AgentWorkloadRow[]
+  generatedAt: string
+}
