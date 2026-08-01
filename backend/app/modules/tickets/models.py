@@ -125,6 +125,20 @@ class Ticket(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     sla_breached_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Optimistic lock — chống hai Agent cùng nhận một ticket (docs/design/03 §7)
+    #
+    # ★★ CỘT NÀY CHỈ CÓ TÁC DỤNG NHỜ `__mapper_args__` Ở DƯỚI. ĐỪNG XOÁ.
+    #
+    # Bản đầu tiên chỉ khai cột rồi so sánh trong Python (`_check_version`) và
+    # tự cộng 1 (`_bump`). Đó là đọc-rồi-ghi: hai transaction cùng đọc
+    # version=1, cả hai cùng qua bước so sánh, cả hai cùng UPDATE — và câu
+    # UPDATE không có `WHERE version = 1` nên người sau ghi đè im lặng lên
+    # người trước. Chạy thử hai luồng đồng thời: cả hai đều nhận HTTP 200,
+    # database ghi Agent thứ hai, và `version` chỉ lên 2 thay vì 3 (một lần
+    # cộng bị mất) nên lần ghi đồng thời kế tiếp cũng lọt.
+    #
+    # `version_id_col` bảo SQLAlchemy tự thêm `WHERE version = :cũ` vào mọi
+    # câu UPDATE và tự tăng giá trị; không khớp thì ném `StaleDataError`.
+    # Việc kiểm tra chuyển từ Python xuống đúng chỗ nó phải nằm: database.
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     search_vector: Mapped[Any | None] = mapped_column(TSVECTOR)
 
@@ -159,6 +173,12 @@ class Ticket(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         Index("ix_tickets_assignee_status", "assignee_id", "status"),
         Index("ix_tickets_search", "search_vector", postgresql_using="gin"),
     )
+
+    # SQLAlchemy tự tăng `version` và tự thêm điều kiện vào WHERE — xem chú
+    # thích dài ở khai báo cột. KHÔNG đặt `version_id_generator=False`: để
+    # SQLAlchemy tự sinh thì không chỗ nào trong service cộng tay được nữa,
+    # và đó chính là điều ta muốn.
+    __mapper_args__ = {"version_id_col": version}
 
     @property
     def is_open(self) -> bool:

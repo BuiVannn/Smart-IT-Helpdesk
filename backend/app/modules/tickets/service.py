@@ -16,9 +16,10 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import settings
 from app.core.exceptions import (
     ConflictError,
     ForbiddenError,
@@ -197,7 +198,12 @@ class TicketService:
 
     def allowed_transitions(self, user: User, ticket_id: UUID) -> list[TicketStatus]:
         ticket = self._load(user, ticket_id)
-        return TicketStateMachine.allowed_next(ticket.status, user.role)
+        return TicketStateMachine.allowed_next(
+            ticket.status,
+            user.role,
+            is_requester=ticket.requester_id == user.id,
+            is_assignee=ticket.assignee_id == user.id,
+        )
 
     # ── Sửa nội dung ──────────────────────────────────────────────────
 
@@ -207,6 +213,26 @@ class TicketService:
 
         if not TicketAccessPolicy.can_edit(user, ticket):
             raise ForbiddenError("Chỉ sửa được ticket của mình khi còn ở trạng thái NEW")
+
+        # ★ Nhân viên chỉ được sửa TIÊU ĐỀ và MÔ TẢ (tài liệu 06 §5).
+        #
+        # `can_edit` trả True/False cho cả bản ghi, còn `UpdateTicketRequest`
+        # có sẵn `priority` và `categoryId` — nên bản trước cho nhân viên tự
+        # đẩy ticket của mình lên URGENT. Hậu quả kép: `_apply_sla` tính lại
+        # hạn theo mức mới nên người đó nhảy lên đầu hàng chờ, và sửa
+        # `categoryId` còn kích hoạt `_record_ai_correction`, tức người dùng
+        # TỰ ĐÁNH DẤU AI phân loại sai và bóp méo báo cáo US-22.
+        #
+        # Mức ưu tiên là quyết định của đội IT sau khi đánh giá tác động, không
+        # phải điều người gửi yêu cầu tự khai.
+        if user.role == UserRole.EMPLOYEE and (
+            data.priority is not None or data.category_id is not None
+        ):
+            raise ForbiddenError(
+                "Bạn chỉ sửa được tiêu đề và mô tả. "
+                "Mức ưu tiên và loại sự cố do đội IT quyết định.",
+                details={"editableFields": ["title", "description"]},
+            )
 
         changed = False
         if data.title is not None and data.title.strip() != ticket.title:
@@ -244,7 +270,6 @@ class TicketService:
             changed = True
 
         if changed:
-            self._bump(ticket)
             self.db.commit()
         return self._load(user, ticket_id)
 
@@ -343,7 +368,6 @@ class TicketService:
             actor_id=user.id,
         )
 
-        self._bump(ticket)
         self.db.commit()
         return self._load(user, ticket.id)
 
@@ -398,7 +422,6 @@ class TicketService:
             new_value=data.status,
         )
         self._notify_status_change(ticket, user, data.status)
-        self._bump(ticket)
         self.db.commit()
 
         logger.info(
@@ -494,7 +517,14 @@ class TicketService:
 
         # BR-13 — AI KHÔNG BAO GIỜ ghi đè phân loại do con người chọn. Vẫn ghi
         # nhận gợi ý (bản ghi ai_classifications) để US-22 so sánh AI với người.
-        if ticket.category_id is not None:
+        #
+        # ★ "Phân loại" gồm CẢ mức ưu tiên, không riêng loại sự cố. Bản đầu
+        # tiên chỉ kiểm `category_id`, nên có kịch bản thật sau: nhân viên tạo
+        # ticket không chọn loại; trong lúc LLM còn đang chạy, Agent xem qua và
+        # tự đặt URGENT vì sự cố gấp; AI trả về MEDIUM và GHI ĐÈ — hạ mức ưu
+        # tiên của con người xuống và nới hạn SLA thêm hai ngày. Nhật ký ghi
+        # đúng hai dòng liên tiếp: USER MEDIUM→URGENT rồi AI URGENT→MEDIUM.
+        if ticket.category_id is not None or self._nguoi_da_phan_loai(ticket.id):
             ticket.ai_status = AiStatus.SKIPPED
             self.db.flush()
             return AiStatus.SKIPPED
@@ -506,7 +536,6 @@ class TicketService:
         # Hạn SLA tính lại theo mức ưu tiên MỚI nhưng vẫn từ lúc TẠO ticket —
         # tính từ bây giờ là tự gia hạn cho mình mấy giây AI vừa tiêu tốn.
         self._apply_sla(ticket)
-        self._bump(ticket)
 
         self._record(
             ticket,
@@ -649,7 +678,6 @@ class TicketService:
             self._settle_ai_accuracy(ticket)
             ticket.status = TicketStatus.CLOSED
             ticket.closed_at = moment
-            self._bump(ticket)
             self._record(
                 ticket,
                 None,
@@ -677,6 +705,30 @@ class TicketService:
             raise NotFoundError("Không tìm thấy ticket")
         return ticket
 
+    def _nguoi_da_phan_loai(self, ticket_id: UUID) -> bool:
+        """Đã có CON NGƯỜI can thiệp vào loại sự cố hoặc mức ưu tiên chưa?
+
+        Hỏi nhật ký thay vì so sánh giá trị hiện tại: mức ưu tiên luôn khác
+        `None` (mặc định MEDIUM), nên không có cách nào nhìn vào cột `priority`
+        mà biết được nó do người đặt hay do hệ thống điền. `ticket_events` là
+        chỉ-ghi-thêm và có `actor_type`, nên nó trả lời được câu hỏi này chính
+        xác — và trả lời được cả sau này khi ticket đã qua tay nhiều người.
+        """
+        return (
+            self.db.execute(
+                select(func.count())
+                .select_from(TicketEvent)
+                .where(
+                    TicketEvent.ticket_id == ticket_id,
+                    TicketEvent.actor_type == ActorType.USER,
+                    TicketEvent.event_type.in_(
+                        [EventType.PRIORITY_CHANGED, EventType.RECLASSIFIED]
+                    ),
+                )
+            ).scalar_one()
+            > 0
+        )
+
     def _check_version(self, ticket: Ticket, version: int) -> None:
         """Khoá lạc quan (BR-16).
 
@@ -688,10 +740,6 @@ class TicketService:
                 "Ticket đã được người khác cập nhật. Vui lòng tải lại.",
                 details={"currentVersion": ticket.version},
             )
-
-    @staticmethod
-    def _bump(ticket: Ticket) -> None:
-        ticket.version += 1
 
     def _mark_first_response(self, ticket: Ticket, user: User, now: datetime) -> None:
         """Ghi nhận lần phản hồi đầu tiên của IT — mốc đo SLA phản hồi.
@@ -845,7 +893,19 @@ class TicketService:
             holidays = frozenset(
                 row.holiday_date.date() for row in self.db.execute(select(Holiday)).scalars().all()
             )
-            self._sla = SlaCalculator(BusinessCalendar(holidays=holidays))
+            # ★ Phải truyền giờ và múi giờ từ cấu hình. Bản trước dựng
+            # `BusinessCalendar(holidays=...)` trần, nên đổi BUSINESS_HOUR_*
+            # trong .env chỉ có tác dụng với gợi ý người xử lý mà KHÔNG có
+            # tác dụng với SLA — hai chỗ nói hai điều khác nhau về cùng một
+            # khái niệm "giờ hành chính".
+            self._sla = SlaCalculator(
+                BusinessCalendar(
+                    start_hour=settings.BUSINESS_HOUR_START,
+                    end_hour=settings.BUSINESS_HOUR_END,
+                    holidays=holidays,
+                    timezone=settings.BUSINESS_TIMEZONE,
+                )
+            )
         return self._sla
 
     def sla_state(self, ticket: Ticket, now: datetime | None = None) -> SlaState:

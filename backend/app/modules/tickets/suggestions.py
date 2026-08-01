@@ -258,13 +258,15 @@ class AssigneeSuggestionService:
         toàn bộ test của `AssigneeScorer` giữ nguyên.
         """
         calendar = self._business_calendar()
-        # So sánh `now.time()` giống hệt SlaCalculator.due_at(). Cả hệ thống
-        # coi dấu thời gian là một múi giờ duy nhất (Celery cũng đặt UTC); đổi
-        # quy ước ở riêng chỗ này sẽ khiến "trong ca trực" và "trong giờ SLA"
-        # nói hai điều khác nhau về cùng một thời điểm.
-        if not calendar.is_workday(now.date()):
+        # ★ ĐỔI SANG GIỜ ĐỊA PHƯƠNG TRƯỚC KHI SO. `now` là UTC; so thẳng
+        # `now.time()` với 8:30–17:30 khiến 10 giờ sáng thứ Tư ở Việt Nam
+        # thành 03:00 UTC ⇒ MỌI Agent bị coi là ngoài ca trong suốt giờ làm
+        # việc thật, và trọng số ca trực mất tác dụng hoàn toàn. Unit test cũ
+        # dùng datetime UTC nên vẫn xanh — lỗi chỉ lộ khi chạy thật.
+        local = calendar.to_local(now)
+        if not calendar.is_workday(local.date()):
             return False
-        if not calendar.start_time <= now.time() < calendar.end_time:
+        if not calendar.start_time <= local.time() < calendar.end_time:
             return False
         if last_login_at is None:
             return False
@@ -280,6 +282,7 @@ class AssigneeSuggestionService:
                 start_hour=settings.BUSINESS_HOUR_START,
                 end_hour=settings.BUSINESS_HOUR_END,
                 holidays=holidays,
+                timezone=settings.BUSINESS_TIMEZONE,
             )
         return self._calendar
 

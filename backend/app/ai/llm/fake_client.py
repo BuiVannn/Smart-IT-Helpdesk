@@ -12,11 +12,21 @@ from typing import Any
 
 from app.ai.llm.base import LlmResponse
 
+# ★★ `confidence` PHẢI THẤP HƠN `AI_CONFIDENCE_THRESHOLD` (0,6). ĐỪNG NÂNG LÊN.
+#
+# Đây là nhánh "không luật nào khớp", tức là FakeLlmClient KHÔNG BIẾT ticket
+# này thuộc loại gì. Bản trước để 0,75 — vượt ngưỡng — nên hệ thống coi đó là
+# một phán đoán tự tin và **ghi thẳng nhãn `other` sai vào ticket** thay vì
+# đưa vào hàng chờ phân loại thủ công. Vì `LLM_PROVIDER=fake` là mặc định,
+# đây chính là hành vi người xem thấy khi demo mà chưa cắm API key.
+#
+# Đo trên tập 50 ca: chế độ fake đạt 54% category, TỆ HƠN đường dự phòng đối
+# chiếu từ khoá (74%) — vì luật thiếu và vì nhãn sai được tự động áp dụng.
 DEFAULT_CLASSIFICATION = {
     "category_slug": "other",
     "priority": "MEDIUM",
-    "confidence": 0.75,
-    "reasoning": "Phản hồi mặc định từ FakeLlmClient",
+    "confidence": 0.3,
+    "reasoning": "Không khớp luật nào — FakeLlmClient trả độ tin cậy thấp để vào hàng chờ thủ công",
 }
 
 # ★ THỨ TỰ CÓ Ý NGHĨA — luật đầu tiên khớp là thắng.
@@ -34,6 +44,17 @@ KEYWORD_RULES: list[tuple[tuple[str, ...], dict[str, Any]]] = [
     (
         ("wifi", "mạng", "internet", "vpn", "kết nối"),
         {"category_slug": "network", "priority": "HIGH", "confidence": 0.92},
+    ),
+    (
+        # `access` đứng TRƯỚC `account`: "xin quyền truy cập thư mục" cũng
+        # chứa chữ "truy cập" lẫn "tài khoản", mà yêu cầu cấp quyền là việc
+        # cụ thể hơn. Để sau thì mọi ticket cấp quyền đều rơi vào `account`.
+        ("cấp quyền", "phân quyền", "quyền truy cập", "không có quyền", "thu hồi quyền"),
+        {"category_slug": "access", "priority": "MEDIUM", "confidence": 0.87},
+    ),
+    (
+        ("outlook", "hòm thư", "hộp thư", "gửi mail", "nhận mail", "email", "lịch họp"),
+        {"category_slug": "email", "priority": "MEDIUM", "confidence": 0.86},
     ),
     (
         ("mật khẩu", "password", "đăng nhập", "tài khoản"),

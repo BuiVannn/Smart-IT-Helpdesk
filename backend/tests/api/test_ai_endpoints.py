@@ -396,6 +396,15 @@ class TestAgentSuaPhanLoaiCuaAi:
             },
         )
         db.refresh(ticket)
+
+        # ★ NGƯỜI YÊU CẦU đóng ticket, không phải Agent. Tài liệu 03 §5 quy
+        # định `RESOLVED → CLOSED` chỉ dành cho Requester, Hệ thống (tự động
+        # sau 3 ngày) và Admin — đóng ticket là hành động không hoàn tác được
+        # và nó tước cửa sổ mở lại của người yêu cầu.
+        #
+        # Bản trước để Agent tự đóng và test này xanh, vì máy trạng thái đang
+        # để ô đó là ALL_ROLES trần.
+        c = as_user(client, login, employee)
         response = c.post(
             f"{BASE}/{ticket.id}/status",
             json={"status": TicketStatus.CLOSED, "version": ticket.version},
