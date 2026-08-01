@@ -8,9 +8,10 @@ frontend phải xử lý hai kiểu dữ liệu cho cùng một thứ.
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import EmailStr, Field
 
 from app.core.schemas import ResponseModel, StrictModel
+from app.core.security import Password
 from app.modules.users.constants import UserRole
 
 
@@ -44,6 +45,39 @@ class UserResponse(ResponseModel):
     is_active: bool = Field(serialization_alias="isActive")
     last_login_at: datetime | None = Field(default=None, serialization_alias="lastLoginAt")
     created_at: datetime = Field(serialization_alias="createdAt")
+
+
+class AdminCreateUserRequest(StrictModel):
+    """US-07 — Admin tạo tài khoản với vai trò bất kỳ.
+
+    Khác `RegisterRequest` ở đúng hai chỗ: có `role` và có `departmentId`.
+    Không gộp làm một schema với cờ "isAdmin": một schema mà ý nghĩa các
+    field đổi theo người gọi là schema không kiểm chứng được.
+    """
+
+    email: EmailStr
+    password: Password
+    full_name: str = Field(alias="fullName", min_length=2, max_length=150)
+    role: UserRole = UserRole.EMPLOYEE
+    department_id: UUID | None = Field(default=None, alias="departmentId")
+    phone: str | None = Field(default=None, max_length=20)
+
+
+class AdminUpdateUserRequest(StrictModel):
+    """US-07 — Admin sửa hồ sơ và vai trò người khác.
+
+    KHÔNG có `isActive`: khoá/mở khoá đi qua endpoint riêng vì nó kéo theo
+    việc thu hồi toàn bộ refresh token. Trộn vào PATCH chung thì sớm muộn có
+    người sửa hồ sơ và vô tình khoá tài khoản mà không thu hồi token.
+
+    Cũng KHÔNG có `email` và `password`: đổi email là đổi danh tính đăng nhập,
+    đổi mật khẩu hộ người khác cần một luồng riêng có ghi vết.
+    """
+
+    full_name: str | None = Field(default=None, alias="fullName", min_length=2, max_length=150)
+    role: UserRole | None = None
+    department_id: UUID | None = Field(default=None, alias="departmentId")
+    phone: str | None = Field(default=None, max_length=20)
 
 
 class UpdateProfileRequest(StrictModel):

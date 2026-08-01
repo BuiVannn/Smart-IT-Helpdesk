@@ -28,6 +28,14 @@ from app.core.exceptions import (
 )
 from app.core.logging import get_logger
 from app.core.pagination import PageParams
+from app.modules.notifications.service import (
+    ENTITY_TICKET,
+    NotificationService,
+    assigned_message,
+    commented_message,
+    resolved_message,
+    status_message,
+)
 from app.modules.tickets.constants import (
     ActorType,
     AiStatus,
@@ -70,6 +78,11 @@ class TicketService:
         self.tickets = TicketRepository(session)
         self.comments = CommentRepository(session)
         self.events = TicketEventRepository(session)
+        # Thông báo được ghi trong CÙNG transaction với thay đổi sinh ra nó.
+        # Gửi sau khi commit thì có lúc thay đổi thành công mà thông báo mất;
+        # gửi trước thì có lúc báo một việc rồi rollback. Cùng transaction là
+        # cách duy nhất hai thứ không bao giờ lệch nhau (ADR-0007).
+        self.notifier = NotificationService(session)
         self._sla: SlaCalculator | None = None
 
     # ── US-08: Tạo ticket ─────────────────────────────────────────────
@@ -314,6 +327,22 @@ class TicketService:
             old_value=str(old_assignee) if old_assignee else None,
             new_value=str(assignee_id),
         )
+
+        # US-34 — báo cho người vừa được giao. BR-18 lo phần "Agent tự nhận
+        # việc thì không tự báo cho mình" nên ở đây không cần câu if nào.
+        title, body = assigned_message(
+            ticket.code, ticket.title, str(ticket.priority), ticket.sla_resolution_due_at
+        )
+        self.notifier.notify(
+            user_id=assignee_id,
+            notification_type="TICKET_ASSIGNED",
+            title=title,
+            body=body,
+            entity_type=ENTITY_TICKET,
+            entity_id=ticket.id,
+            actor_id=user.id,
+        )
+
         self._bump(ticket)
         self.db.commit()
         return self._load(user, ticket.id)
@@ -368,6 +397,7 @@ class TicketService:
             old_value=old_status,
             new_value=data.status,
         )
+        self._notify_status_change(ticket, user, data.status)
         self._bump(ticket)
         self.db.commit()
 
@@ -413,6 +443,7 @@ class TicketService:
             EventType.COMMENTED,
             event_metadata={"commentId": str(comment.id), "isInternal": internal},
         )
+        self._notify_comment(ticket, user, internal)
         self.db.commit()
         self.db.refresh(comment)
         return comment
@@ -714,6 +745,67 @@ class TicketService:
                 new_value=str(new_value) if new_value is not None else None,
                 event_metadata=event_metadata or {},
             )
+        )
+
+    # ── Thông báo (F6) ────────────────────────────────────────────────
+
+    def _notify_status_change(self, ticket: Ticket, actor: User, new_status: TicketStatus) -> None:
+        """US-33 — báo cho người yêu cầu và người xử lý khi trạng thái đổi.
+
+        Người vừa bấm nút bị BR-18 loại ra, nên hai lời gọi dưới đây tự động
+        chỉ tới đúng "bên còn lại" mà không cần so sánh id ở đây.
+
+        `RESOLVED` được tách riêng: người yêu cầu cần lời mời xác nhận, còn
+        người xử lý chỉ cần biết trạng thái đã đổi. Gửi cùng một câu cho cả
+        hai sẽ mời chính Agent đi xác nhận việc mình vừa làm.
+        """
+        if new_status is TicketStatus.RESOLVED:
+            title, body = resolved_message(ticket.code, ticket.title)
+            self.notifier.notify(
+                user_id=ticket.requester_id,
+                notification_type="TICKET_RESOLVED",
+                title=title,
+                body=body,
+                entity_type=ENTITY_TICKET,
+                entity_id=ticket.id,
+                actor_id=actor.id,
+            )
+            recipients = [ticket.assignee_id]
+        else:
+            recipients = [ticket.requester_id, ticket.assignee_id]
+
+        title, body = status_message(ticket.code, ticket.title, str(new_status))
+        self.notifier.notify_many(
+            [r for r in recipients if r is not None],
+            notification_type="TICKET_STATUS_CHANGED",
+            title=title,
+            body=body,
+            entity_type=ENTITY_TICKET,
+            entity_id=ticket.id,
+            actor_id=actor.id,
+        )
+
+    def _notify_comment(self, ticket: Ticket, actor: User, is_internal: bool) -> None:
+        """US-33 — báo khi có bình luận mới, trừ bình luận của chính mình.
+
+        ★ Bình luận nội bộ KHÔNG báo cho người yêu cầu (BR-10). Người yêu cầu
+        không nhìn thấy nội dung bình luận đó, nên một thông báo "có phản hồi
+        mới" dẫn tới một ticket không có gì mới vừa vô nghĩa vừa tự tố cáo
+        rằng có tồn tại lớp bình luận ẩn.
+        """
+        recipients = [ticket.assignee_id]
+        if not is_internal:
+            recipients.append(ticket.requester_id)
+
+        title, body = commented_message(ticket.code, ticket.title, actor.full_name)
+        self.notifier.notify_many(
+            [r for r in recipients if r is not None],
+            notification_type="TICKET_COMMENTED",
+            title=title,
+            body=body,
+            entity_type=ENTITY_TICKET,
+            entity_id=ticket.id,
+            actor_id=actor.id,
         )
 
     def _default_priority(self, category_id: UUID | None) -> TicketPriority:

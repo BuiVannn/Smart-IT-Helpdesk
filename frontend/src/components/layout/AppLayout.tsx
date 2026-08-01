@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/types'
 
@@ -51,7 +52,7 @@ export function AppLayout() {
                            bg-white px-6 py-3">
           <Link to="/" className="text-sm font-medium md:hidden">Smart IT Helpdesk</Link>
           <div className="ml-auto flex items-center gap-4 text-sm">
-            {/* TODO(T-sau): NotificationBell — polling /notifications/unread-count mỗi 30s */}
+            <NotificationBell />
             <span className="text-slate-600">{user?.fullName}</span>
             <button
               onClick={() => void logout()}

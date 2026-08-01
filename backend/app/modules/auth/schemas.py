@@ -11,30 +11,15 @@ Nếu auth tự định nghĩa lại hình dạng user, hai bên sẽ trôi khá
 frontend phải xử lý hai kiểu dữ liệu cho cùng một thứ.
 """
 
-from typing import Annotated
-
-from pydantic import AfterValidator, EmailStr, Field
+from pydantic import EmailStr, Field
 
 from app.core.schemas import ResponseModel, StrictModel
+
+# `Password` (chính sách mật khẩu) đã chuyển sang `app/core/security.py` để
+# module `users` dùng chung được — US-07 cho phép Admin tạo tài khoản hộ, và
+# mật khẩu khởi tạo đó phải chịu đúng một chính sách với mật khẩu tự đăng ký.
+from app.core.security import Password
 from app.modules.users.schemas import UserResponse
-
-
-def _check_password_policy(v: str) -> str:
-    if not any(c.isupper() for c in v):
-        raise ValueError("Mật khẩu phải có ít nhất 1 chữ hoa")
-    if not any(c.islower() for c in v):
-        raise ValueError("Mật khẩu phải có ít nhất 1 chữ thường")
-    if not any(c.isdigit() for c in v):
-        raise ValueError("Mật khẩu phải có ít nhất 1 chữ số")
-    return v
-
-
-# Chính sách mật khẩu khai báo MỘT chỗ rồi dùng lại — đăng ký và đổi mật khẩu
-# mà kiểm tra khác nhau là cách kinh điển để lọt mật khẩu yếu qua đường vòng.
-Password = Annotated[
-    str, Field(min_length=8, max_length=128), AfterValidator(_check_password_policy)
-]
-
 
 # ─────────────── Input ───────────────
 
