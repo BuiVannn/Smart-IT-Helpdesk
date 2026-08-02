@@ -72,6 +72,22 @@ class ExternalServiceError(DomainError):
     default_message = "Dịch vụ bên ngoài tạm thời không phản hồi"
 
 
+class RateLimitedError(ExternalServiceError):
+    """Nhà cung cấp bên ngoài trả 429 — hết hạn mức, không phải lỗi tạm thời.
+
+    ★ CỐ Ý KHÔNG NẰM TRONG `RETRYABLE`. Thử lại chính nhà cung cấp vừa từ chối
+    vì hết hạn mức là việc gần như luôn vô ích: hạn mức của gói miễn phí tính
+    theo phút hoặc theo phiên nhiều giờ, không theo giây. Ba lần thử với nghỉ
+    2s rồi 6s chỉ đốt 8 giây rồi vẫn hỏng.
+
+    Là con của `ExternalServiceError` nên lớp chuyển dự phòng vẫn coi đây là
+    lý do chính đáng để sang nhà cung cấp khác — và sang NGAY, đó mới là việc
+    có ích. Đo được: 8 giây tiết kiệm cho mỗi lần chạm hạn mức.
+    """
+
+    default_message = "Nhà cung cấp đã hết hạn mức, đang chuyển sang dự phòng"
+
+
 class BudgetExceededError(DomainError):
     code, http_status = "AI_BUDGET_EXCEEDED", 503
     default_message = "Tính năng AI tạm ngưng do đã đạt hạn mức tháng"

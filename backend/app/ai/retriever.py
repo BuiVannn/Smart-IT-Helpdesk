@@ -20,6 +20,20 @@ from app.modules.chatbot.prompts import RetrievedChunk
 logger = get_logger(__name__)
 
 # Chỉ truy xuất bài đã PUBLISHED — bài DRAFT không bao giờ lọt vào ngữ cảnh (BR-11).
+#
+# ★★ ĐIỀU KIỆN `c.embedding_model = :embedding_model` LÀ LƯỚI AN TOÀN, ĐỪNG BỎ.
+#
+# Vector của hai model khác nhau KHÔNG so sánh được — khoảng cách cosine giữa
+# chúng là một con số vô nghĩa, không phải một con số kém chính xác. Không có
+# điều kiện này thì ba tình huống rất đời thường đều cho ra câu trả lời tự tin
+# dựa trên tài liệu ngẫu nhiên:
+#
+#   1. Đổi `EMBEDDING_MODEL` mà quên chạy lại `reindex_kb.py`
+#   2. Nhà cung cấp embedding chính hỏng, hệ thống chuyển sang dự phòng
+#   3. Chạy demo bằng `LLM_PROVIDER=fake` trên kho đã index bằng model thật
+#
+# Lọc theo model biến cả ba thành "không tìm thấy tài liệu" ⇒ chatbot từ chối
+# trả lời. Thà nói không biết còn hơn bịa — đúng nguyên tắc của tầng RAG.
 RETRIEVAL_SQL = text("""
     SELECT
         c.id            AS chunk_id,
@@ -31,8 +45,19 @@ RETRIEVAL_SQL = text("""
     FROM article_chunks c
     JOIN kb_articles a ON a.id = c.article_id
     WHERE a.status = 'PUBLISHED'
+      AND c.embedding_model = :embedding_model
     ORDER BY c.embedding <=> CAST(:query_vector AS vector)
     LIMIT :top_k
+""")
+
+# Đếm chunk theo từng model — chỉ chạy khi truy vấn không ra gì, để thông báo
+# lỗi nói được nguyên nhân thật thay vì "kho tài liệu rỗng".
+DIAGNOSTIC_SQL = text("""
+    SELECT c.embedding_model AS model, count(*) AS so_luong
+    FROM article_chunks c
+    JOIN kb_articles a ON a.id = c.article_id
+    WHERE a.status = 'PUBLISHED'
+    GROUP BY c.embedding_model
 """)
 
 
@@ -78,18 +103,25 @@ class Retriever:
             return RetrievalResult(chunks=[], top_score=0.0, total_candidates=0)
 
         vector = (await self.embedding.embed([query]))[0]
+        # Lấy tên model SAU khi gọi embed: với chuỗi có dự phòng, tên chỉ đúng
+        # khi đã biết chỗ nào thật sự phục vụ lần gọi này.
+        model = self.embedding.model_name
 
         rows = (
             self.session.execute(
                 RETRIEVAL_SQL,
-                {"query_vector": str(vector), "top_k": self.top_k},
+                {
+                    "query_vector": str(vector),
+                    "top_k": self.top_k,
+                    "embedding_model": model,
+                },
             )
             .mappings()
             .all()
         )
 
         if not rows:
-            logger.warning("kho tài liệu rỗng — chưa có chunk nào được index")
+            self._canh_bao_khong_co_chunk(model)
             return RetrievalResult(chunks=[], top_score=0.0, total_candidates=0)
 
         top_score = float(rows[0]["score"])
@@ -127,3 +159,33 @@ class Retriever:
     def chunk_ids_of(self, result: RetrievalResult) -> list[str]:
         """Tiện ích cho tầng gọi khi cần lưu trích dẫn."""
         return [c.article_id for c in result.chunks]
+
+    def _canh_bao_khong_co_chunk(self, model: str) -> None:
+        """Nói rõ VÌ SAO không có chunk nào — rỗng thật hay lệch model.
+
+        Hai nguyên nhân này cần hai hành động hoàn toàn khác nhau, mà triệu
+        chứng lại giống hệt: chatbot trả lời "không tìm thấy tài liệu". Không
+        phân biệt được thì người sửa sẽ đi chạy `seed_kb.py` trong khi vấn đề
+        thật là quên `reindex_kb.py`.
+        """
+        theo_model = {
+            row["model"]: row["so_luong"]
+            for row in self.session.execute(DIAGNOSTIC_SQL).mappings().all()
+        }
+
+        if not theo_model:
+            logger.warning(
+                "kho tài liệu rỗng — chạy scripts/seed_kb.py rồi scripts/reindex_kb.py --all"
+            )
+            return
+
+        logger.error(
+            "LỆCH MODEL EMBEDDING: kho đã index bằng model khác nên không so sánh được. "
+            "Chạy `python scripts/reindex_kb.py --all` để index lại bằng model hiện tại.",
+            extra={
+                "extra_fields": {
+                    "model_dang_dung": model,
+                    "model_trong_kho": theo_model,
+                }
+            },
+        )

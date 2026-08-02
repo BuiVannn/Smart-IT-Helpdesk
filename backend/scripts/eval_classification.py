@@ -80,7 +80,7 @@ class RulesOnlyLlm:
         yield ""
 
 
-def load_cases(difficulty: str | None) -> list[dict]:
+def load_cases(difficulty: str | None, limit: int | None = None) -> list[dict]:
     if not FIXTURE.exists():
         sys.exit(f"Không tìm thấy tập đánh giá: {FIXTURE}")
     cases = [json.loads(line) for line in FIXTURE.read_text("utf-8").splitlines() if line.strip()]
@@ -88,6 +88,12 @@ def load_cases(difficulty: str | None) -> list[dict]:
         cases = [c for c in cases if c.get("difficulty") == difficulty]
     if not cases:
         sys.exit(f"Không có ca nào khớp difficulty={difficulty!r}")
+
+    if limit is not None and limit < len(cases):
+        # Lấy MẪU RẢI ĐỀU thay vì N ca đầu: tập đánh giá xếp theo độ khó tăng
+        # dần, nên `cases[:10]` chỉ toàn ca dễ và cho ra con số đẹp vô nghĩa.
+        buoc = len(cases) / limit
+        cases = [cases[int(i * buoc)] for i in range(limit)]
     return cases
 
 
@@ -235,6 +241,15 @@ def main() -> None:
         choices=["clear", "ambiguous", "tricky"],
         help="Chỉ chạy các ca thuộc một mức độ khó",
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        help=(
+            "Chỉ chạy N ca, lấy mẫu rải đều. ★ MỖI CA LÀ MỘT LƯỢT GỌI API: gói "
+            "miễn phí OpenRouter chỉ cho 50 lượt/ngày, nên chạy trọn tập 50 ca "
+            "là hết sạch hạn mức của cả ngày hôm đó."
+        ),
+    )
     args = parser.parse_args()
 
     if not args.rules_only and settings.LLM_PROVIDER == "fake":
@@ -243,7 +258,7 @@ def main() -> None:
             "   Con số dưới đây không dùng để kết luận về chất lượng prompt.\n"
         )
 
-    cases = load_cases(args.difficulty)
+    cases = load_cases(args.difficulty, args.limit)
     results = asyncio.run(run(cases, args.rules_only))
     # Mã thoát khác 0 để CI dùng được script này như một cổng chất lượng.
     sys.exit(0 if report(results) else 1)

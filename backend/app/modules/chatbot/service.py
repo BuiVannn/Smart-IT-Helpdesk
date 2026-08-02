@@ -222,7 +222,8 @@ class ChatService:
         """Viết lại câu hỏi thành câu độc lập. Lỗi thì dùng câu gốc."""
         try:
             system, user = build_rewrite_prompt(question=question, history=history)
-            response = await self.llm.complete(system=system, user=user, max_tokens=120)
+            # 120 quá chật với model suy luận — xem chú thích ở classifier.py.
+            response = await self.llm.complete(system=system, user=user, max_tokens=500)
             rewritten = response.content.strip().strip('"')
             if rewritten:
                 logger.info(
