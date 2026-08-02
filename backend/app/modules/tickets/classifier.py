@@ -420,7 +420,12 @@ class TicketClassifier:
             # Timeout nằm TRONG hàm được retry: hết giờ lần này thì lần sau
             # vẫn được trọn thời gian, thay vì bị lần trước ăn mất.
             return await asyncio.wait_for(
-                self.llm.complete(system=system, user=user, schema=schema, max_tokens=400),
+                # ★ 900 chứ không phải 400. Model suy luận (nemotron, gpt-oss)
+                # tiêu token vào phần suy nghĩ TRƯỚC khi viết câu trả lời; với
+                # trần 400 thì `content` hay về rỗng trong khi HTTP vẫn 200, và
+                # mọi ticket lặng lẽ rơi xuống tầng luật. Câu trả lời thật chỉ
+                # tốn ~80 token nên phần dư này gần như miễn phí.
+                self.llm.complete(system=system, user=user, schema=schema, max_tokens=900),
                 timeout=self.timeout,
             )
 

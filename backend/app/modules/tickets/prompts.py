@@ -13,7 +13,17 @@ QUY TẮC KHI SỬA PROMPT:
 
 from typing import Any
 
-CLASSIFY_PROMPT_VERSION = "classify-v1.0"
+# v1.1 — nêu TÊN TRƯỜNG ngay trong prompt thay vì chỉ dựa vào JSON schema.
+#
+# ★ Lý do đo được: Ollama Cloud NHẬN `response_format: json_schema` (HTTP 200)
+# nhưng BỎ QUA nó — `nemotron-3-nano:30b` trả `{"category": "hardware"}` thay
+# vì `{"category_slug": ...}`, và `_validate()` loại bỏ toàn bộ kết quả nên
+# mọi ticket rơi xuống tầng luật dự phòng. Nhìn từ ngoài thì "AI vẫn chạy",
+# chỉ là không bao giờ dùng được AI.
+#
+# Cưỡng chế schema là thứ CHỈ MỘT SỐ nhà cung cấp làm; nói rõ trong prompt thì
+# chỗ nào cũng hiểu, và không mất gì ở chỗ có cưỡng chế thật.
+CLASSIFY_PROMPT_VERSION = "classify-v1.1"
 
 # Ngưỡng tin cậy: dưới mức này thì KHÔNG tự áp dụng, chuyển hàng chờ thủ công.
 # Giá trị thật đọc từ settings.AI_CONFIDENCE_THRESHOLD — hằng số ở đây chỉ để
@@ -59,7 +69,16 @@ Tiêu đề: {title}
 Mô tả: {description}
 --- KẾT THÚC YÊU CẦU HỖ TRỢ ---
 
-Phân loại yêu cầu trên."""
+Phân loại yêu cầu trên.
+
+★ ĐỊNH DẠNG BẮT BUỘC — trả về ĐÚNG bốn khoá dưới đây, đúng tên, không thêm \
+không bớt, không bọc trong rào markdown:
+
+{{"category_slug": "<một mã trong danh sách trên>", "priority": "LOW|MEDIUM|HIGH|URGENT", \
+"confidence": <số từ 0 đến 1>, "reasoning": "<lý do ngắn bằng tiếng Việt>"}}
+
+Tên khoá là "category_slug", KHÔNG phải "category". Sai tên khoá thì kết quả \
+bị loại bỏ hoàn toàn."""
 
 
 def build_classification_schema(category_slugs: list[str]) -> dict[str, Any]:
@@ -130,15 +149,65 @@ def build_classify_prompt(
 #
 # | Phiên bản     | Ngày       | Độ chính xác category | Ghi chú              |
 # |---------------|------------|-----------------------|----------------------|
-# | classify-v1.0 | 2026-07-31 | (chưa đo)             | Bản đầu tiên         |
+# | classify-v1.0 | 2026-07-31 | (không đo được)       | Bản đầu tiên. Xem ★ 1 |
 # | rules-v1.0    | 2026-08-01 | 74% (50 ca)           | Đường dự phòng, đo bằng
-# |               |            | priority ±1: 84%      | --rules-only. CHƯA đo
-# |               |            |                       | prompt thật: cần API key.
+# |               |            | priority ±1: 84%      | --rules-only.        |
+# | classify-v1.1 | 2026-08-02 | **90,0%** (50 ca)     | LLM THẬT. Xem ★ 2    |
+# |               |            | priority chính xác 78%|                      |
+# |               |            | priority ±1: 96%      |                      |
+# |               |            | p95 15,64s (vượt 10s) | trước khi sửa ★ 3    |
+# |               |            | conf đúng/sai 0,83/0,56|                     |
+# | classify-v1.1 | 2026-08-02 | 90,0% (10 ca mẫu)     | SAU khi sửa ★ 3      |
+# | (đo lại)      |            | priority ±1: 90%      | 0/10 phải dùng luật  |
+# |               |            | **p95 6,70s** ✓       | (trước: 7/50)        |
 # ─────────────────────────────────────────────────────────────────────
 #
-# ★ CHƯA CÓ SỐ CHO `classify-v1.0`. Số ở trên là của đường dự phòng đối chiếu
-# từ khoá, KHÔNG phải của prompt này. Muốn đo prompt thật:
-#     LLM_PROVIDER=openai LLM_API_KEY=sk-... python scripts/eval_classification.py
-# Chạy với LLM_PROVIDER=fake chỉ đo FakeLlmClient và không nói lên điều gì về
-# chất lượng prompt.
+# ★ 1 — VÌ SAO v1.0 KHÔNG ĐO ĐƯỢC, KHÔNG PHẢI VÌ THIẾU API KEY
+#
+# v1.0 chỉ khai báo tên trường trong JSON schema và tin rằng nhà cung cấp sẽ
+# cưỡng chế nó. Ollama Cloud NHẬN `response_format: json_schema` (HTTP 200)
+# rồi BỎ QUA — `nemotron-3-nano:30b` trả `{"category": "hardware"}` thay vì
+# `category_slug`, `_validate()` loại bỏ toàn bộ, và MỌI ticket rơi xuống
+# tầng luật. Nhìn từ ngoài "AI vẫn chạy", thực tế AI chưa từng được dùng.
+#
+# ★ 2 — ĐIỀU KIỆN ĐO CỦA v1.1
+#
+#   Nhà cung cấp : Ollama Cloud (nemotron-3-nano:30b), dự phòng OpenRouter
+#   Tập đánh giá : 50 ca — 34 clear / 11 ambiguous / 5 tricky
+#   Kết quả      : clear 33/34 · ambiguous 9/11 · tricky 3/5
+#
+#   HIỆU CHỈNH ĐỘ TIN CẬY 0,83 / 0,56 là con số đáng giá nhất ở đây: model
+#   tự tin hơn hẳn khi đúng so với khi sai, nghĩa là ngưỡng 0,6 của BR-14
+#   thật sự lọc được — chứ không phải một con số cho có.
+#
+#   ĐỘ TRỄ p95 15,64s VƯỢT MỤC TIÊU 10s ở lần đo đầu — xem ★ 3.
+#
+# ★ 3 — HAI LỖI CỦA CHÍNH DỰ ÁN, TÌM RA NHỜ ĐO THẬT
+#
+#   (a) 429 bị thử lại vô ích. Lỗi 429 ném `ConnectionError`, mà loại này nằm
+#       trong `RETRYABLE`, nên hệ thống thử lại CHÍNH nhà cung cấp vừa nói
+#       "hết hạn mức" ba lần với nghỉ 2s rồi 6s — đốt 8 giây rồi mới chuyển
+#       sang dự phòng. Sửa: thêm `RateLimitedError`, không nằm trong
+#       `RETRYABLE` nhưng vẫn là con của `ExternalServiceError` nên lớp dự
+#       phòng vẫn bắt và chuyển NGAY.
+#
+#   (b) `max_tokens=400` quá chật với MODEL SUY LUẬN. `nemotron-3-nano:30b`
+#       viết quá trình suy nghĩ vào trường phi chuẩn `message.reasoning`
+#       trước, rồi mới viết câu trả lời vào `content`. Hết token giữa chừng
+#       thì `content` về RỖNG trong khi HTTP vẫn 200 và `finish_reason` vẫn
+#       là `stop`. Sửa: nâng lên 900 và cho `_lay_noi_dung()` mượn tạm
+#       `reasoning` khi `content` rỗng.
+#
+#   Sau hai bản vá: p95 15,64s -> 6,70s, và số ca phải dùng luật dự phòng
+#   từ 7/50 xuống 0/10.
+#
+# ★ 4 — HẠN MỨC MIỄN PHÍ, ĐỌC TRƯỚC KHI CHẠY TẬP ĐÁNH GIÁ
+#
+#   OpenRouter gói miễn phí: **50 lượt/ngày** (X-RateLimit-Limit: 50), reset
+#   00:00 UTC. Chạy trọn tập 50 ca là DÙNG HẾT hạn mức của cả ngày hôm đó —
+#   đã xảy ra một lần, và lần chạy kế tiếp có 45/50 ca rơi xuống tầng luật.
+#   Dùng `--limit 10` cho các lần đo thường ngày; để dành trọn tập cho lúc
+#   chốt số đưa vào báo cáo.
+#
+#   Ollama Cloud: hạn mức tính theo thời gian GPU, reset theo phiên 5 giờ.
 # ─────────────────────────────────────────────────────────────────────

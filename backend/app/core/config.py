@@ -55,11 +55,50 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_BYTES: int = 10 * 1024 * 1024
     MAX_ATTACHMENTS_PER_TICKET: int = 5
 
-    # AI
+    # ── AI: nhà cung cấp chính ────────────────────────────────────────
+    #
+    # `openai` không có nghĩa là "phải dùng OpenAI" — nó có nghĩa là "dùng
+    # HTTP API theo chuẩn OpenAI". Ollama Cloud, OpenRouter, Groq, Together,
+    # Azure và Ollama chạy máy đều nói chuẩn này, chỉ khác `LLM_BASE_URL`.
     LLM_PROVIDER: Literal["fake", "openai"] = "fake"
+    LLM_BASE_URL: str = "https://api.openai.com/v1"
     LLM_API_KEY: str = ""
     LLM_MODEL: str = "gpt-4o-mini"
+
+    # ── AI: nhà cung cấp DỰ PHÒNG ─────────────────────────────────────
+    #
+    # Bật bằng cách điền `LLM_FALLBACK_API_KEY`. Khi nhà cung cấp chính lỗi
+    # mạng, quá tải (429) hoặc lỗi 5xx, lời gọi tự chuyển sang đây.
+    #
+    # ★ Vì sao cần: hạn mức miễn phí của Ollama Cloud tính theo thời gian
+    # GPU và reset theo phiên 5 giờ, còn danh sách model `:free` của
+    # OpenRouter thay đổi liên tục (20 xuống 15 trong chín ngày, tháng
+    # 7/2026 gỡ hết tầng Llama và Qwen). Một nhà cung cấp duy nhất nghĩa là
+    # có ngày demo không chạy.
+    LLM_FALLBACK_BASE_URL: str = ""
+    LLM_FALLBACK_API_KEY: str = ""
+    LLM_FALLBACK_MODEL: str = ""
+
+    # Cách ràng buộc đầu ra JSON. Không phải nhà cung cấp nào cũng nhận
+    # `json_schema` (đặc sản của OpenAI); `json_object` phổ dụng hơn nhiều.
+    # `none` dành cho model chỉ biết làm theo lời dặn trong prompt —
+    # `TicketClassifier._validate()` vẫn kiểm chặt đầu ra nên vẫn an toàn.
+    LLM_JSON_MODE: Literal["json_schema", "json_object", "none"] = "json_object"
+
+    # ── AI: embedding ─────────────────────────────────────────────────
+    #
+    # ★ TÁCH RIÊNG KHỎI LLM VÌ MỘT LÝ DO CỤ THỂ: Ollama Cloud KHÔNG có
+    # model embedding nào (lọc cloud+embedding trên ollama.com trả về rỗng).
+    # Nên khi dùng Ollama Cloud cho chat, embedding phải trỏ sang chỗ khác —
+    # OpenRouter có `/v1/embeddings`, hoặc Ollama chạy máy.
+    #
+    # Để trống ⇒ dùng lại cấu hình LLM chính.
+    EMBEDDING_BASE_URL: str = ""
+    EMBEDDING_API_KEY: str = ""
     EMBEDDING_MODEL: str = "text-embedding-3-small"
+    # ★ PHẢI khớp số chiều thật của model. Cột `article_chunks.embedding` là
+    # `vector(EMBEDDING_DIMENSIONS)`; đổi model sang loại 768 chiều mà quên
+    # sửa đây thì mọi lệnh index sẽ lỗi ngay ở dòng đầu tiên.
     EMBEDDING_DIMENSIONS: int = 1536
     AI_MONTHLY_BUDGET_USD: float = 20.0
     AI_CONFIDENCE_THRESHOLD: float = Field(default=0.6, ge=0, le=1)
