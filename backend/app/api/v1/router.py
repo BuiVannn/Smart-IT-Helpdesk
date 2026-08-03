@@ -13,12 +13,13 @@ from app.modules.notifications.router import router as notifications_router
 from app.modules.reports.router import router as reports_router
 from app.modules.tickets.router import router as tickets_router
 from app.modules.users.router import router as users_router
-
+from app.modules.feedback.router import router as feedback_router
 api_router = APIRouter()
 
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(users_router, prefix="/users", tags=["users"])
 api_router.include_router(tickets_router, prefix="/tickets", tags=["tickets"])
+api_router.include_router(feedback_router, prefix="/tickets", tags=["feedback"])
 api_router.include_router(chat_router, prefix="/chat", tags=["chatbot"])
 api_router.include_router(kb_router, prefix="/kb", tags=["knowledge"])
 api_router.include_router(reports_router, prefix="/reports", tags=["reports"])
