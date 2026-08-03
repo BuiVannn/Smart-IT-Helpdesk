@@ -147,19 +147,19 @@ export type ChatEvent =
   | { type: 'citations'; data: { citations: Citation[] } }
   | { type: 'token'; data: { delta: string } }
   | {
-      type: 'done'
-      data: {
-        messageId: string
-        noContextFound: boolean
-        canCreateTicket?: boolean
-        latencyMs: number
-        promptVersion?: string
-      }
+    type: 'done'
+    data: {
+      messageId: string
+      noContextFound: boolean
+      canCreateTicket?: boolean
+      latencyMs: number
+      promptVersion?: string
     }
+  }
   | {
-      type: 'error'
-      data: { code: string; message: string; canCreateTicket?: boolean }
-    }
+    type: 'error'
+    data: { code: string; message: string; canCreateTicket?: boolean }
+  }
 
 export interface CreateTicketInput {
   title: string
@@ -333,4 +333,31 @@ export interface AgentWorkloadReport {
   to: string
   rows: AgentWorkloadRow[]
   generatedAt: string
+}
+
+/* ── F5 — Kho tài liệu ──────────────────────────────────────────── */
+
+export interface KbCategory {
+  id: string
+  slug: string
+  name: string
+}
+
+export interface ArticleListItem {
+  id: string
+  slug: string
+  title: string
+  summary: string | null
+  status: 'DRAFT' | 'PUBLISHED'
+  category: KbCategory | null
+  tags: string[]
+  viewCount: number
+  publishedAt: string | null
+  updatedAt: string
+  version: number
+}
+
+export interface ArticleDetail extends ArticleListItem {
+  contentMd: string
+  author: { id: string; fullName: string } | null
 }
