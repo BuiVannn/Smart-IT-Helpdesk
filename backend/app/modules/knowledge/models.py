@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import TSVECTOR
@@ -71,11 +72,12 @@ class KbArticle(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     chunks: Mapped[list["ArticleChunk"]] = relationship(
         back_populates="article", cascade="all, delete-orphan"
     )
+    # Quan hệ ORM thuần, không thêm cột nên không cần migration.
+    category: Mapped[KbCategory | None] = relationship(foreign_keys=[kb_category_id])
+    author = relationship("User")
 
     __table_args__ = (
-        CheckConstraint(
-            "status <> 'PUBLISHED' OR published_at IS NOT NULL", name="published"
-        ),
+        CheckConstraint("status <> 'PUBLISHED' OR published_at IS NOT NULL", name="published"),
         CheckConstraint("char_length(content_md) >= 20", name="content_len"),
         Index("ix_articles_search", "search_vector", postgresql_using="gin"),
     )
@@ -106,7 +108,7 @@ class ArticleChunk(Base, UUIDPrimaryKeyMixin):
     )
     embedding_model: Mapped[str] = mapped_column(String(100), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default="now()"
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
     article: Mapped[KbArticle] = relationship(back_populates="chunks")
