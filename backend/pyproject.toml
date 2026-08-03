@@ -34,6 +34,7 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM"]
 ignore = [
@@ -45,6 +46,8 @@ ignore = [
 # Tên test viết bằng tiếng Việt và CỐ TÌNH viết hoa phần nhấn mạnh
 # (KHONG, TOAN_BO...) để khi CI đỏ là đọc ra ngay nghiệp vụ nào hỏng.
 "tests/**" = ["N802"]
+# Danh sách từ dừng nhiều dòng dễ rà soát hơn list literal dài do SIM905 gợi ý.
+"app/ai/embedding/fake_embedding.py" = ["SIM905"]
 # File migration do Alembic sinh ra: cột và ràng buộc nằm trên một dòng dài.
 # Bẻ dòng thủ công ở đây vừa vô nghĩa vừa làm khó đối chiếu với bản autogenerate
 # lần sau. Chỉ tha E501 (dòng dài), mọi luật khác vẫn áp dụng bình thường.
@@ -57,6 +60,47 @@ line-length = 100
 python_version = "3.12"
 plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
+
+# Nợ typing đã có trên develop trước khi bỏ `|| true`. Chỉ tắt đúng mã lỗi ở
+# đúng module liên quan; lỗi mới hoặc mã lỗi khác vẫn làm cổng mypy thất bại.
+[[tool.mypy.overrides]]
+module = [
+    "app.modules.auth.repository",
+    "app.modules.knowledge.indexing",
+    "app.modules.chatbot.service",
+    "app.modules.notifications.repository",
+    "app.modules.tickets.tasks",
+    "app.modules.knowledge.router",
+    "app.modules.users.router",
+]
+disable_error_code = ["attr-defined"]
+
+[[tool.mypy.overrides]]
+module = [
+    "app.modules.users.repository",
+    "app.modules.tickets.service",
+]
+disable_error_code = ["valid-type"]
+
+[[tool.mypy.overrides]]
+module = "app.modules.knowledge.repository"
+disable_error_code = ["arg-type", "attr-defined", "valid-type"]
+
+[[tool.mypy.overrides]]
+module = "app.modules.knowledge.service"
+disable_error_code = ["attr-defined", "return-value", "valid-type"]
+
+[[tool.mypy.overrides]]
+module = "app.modules.tickets.classifier"
+disable_error_code = ["arg-type", "union-attr"]
+
+[[tool.mypy.overrides]]
+module = "app.modules.notifications.sla_monitor"
+disable_error_code = ["list-item"]
+
+[[tool.mypy.overrides]]
+module = "app.modules.tickets.router"
+disable_error_code = ["attr-defined", "return-value"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -97,5 +141,9 @@ ignore_imports = [
 [[tool.importlinter.contracts]]
 name = "Module độc lập không được import lẫn nhau"
 type = "independence"
-modules = ["app.modules.auth", "app.modules.knowledge", "app.modules.notifications"]
+modules = [
+    "app.modules.auth",
+    "app.modules.knowledge",
+    "app.modules.notifications",
+]
 ignore_imports = ["app.db.all_models -> app.modules.**"]

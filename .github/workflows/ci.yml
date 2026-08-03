@@ -66,13 +66,15 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Install dependencies
-        run: uv pip install --system -r pyproject.toml --group dev
+        run: |
+          uv sync --frozen --all-groups
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Lint
         run: ruff check . && black --check .
 
       - name: Type check
-        run: mypy app || true
+        run: mypy app
 
       - name: Check module boundaries
         run: lint-imports
@@ -80,16 +82,22 @@ jobs:
       - name: Run migrations
         run: alembic upgrade head
 
+      - name: Seed dữ liệu và index kho tài liệu
+        run: |
+          python scripts/seed.py
+          python scripts/seed_kb.py
+          python scripts/reindex_kb.py --all
+
       - name: Unit tests
         run: pytest tests/unit -v --cov=app --cov-report=
 
       - name: Integration and API tests
         run: >-
-          pytest tests/integration tests/api -v
+          pytest tests/integration tests/api tests/test_app_boots_standalone.py -v
           --cov=app
           --cov-append
           --cov-report=term-missing
-          --cov-fail-under=70
+          --cov-fail-under=80
 
   frontend:
     name: Frontend
