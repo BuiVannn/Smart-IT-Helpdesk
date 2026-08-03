@@ -8,6 +8,9 @@ import { AuthProvider, useAuth } from '@/features/auth/AuthProvider'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 import { ChatPage } from '@/features/chat/ChatPage'
+import { KbListPage } from '@/features/knowledge/KbListPage'
+import { KbDetailPage } from '@/features/knowledge/KbDetailPage'
+
 
 /**
  * Dashboard tải theo yêu cầu vì `recharts` nặng ~500 kB.
@@ -23,6 +26,7 @@ import { CreateTicketPage } from '@/features/tickets/CreateTicketPage'
 import { MyTicketsPage } from '@/features/tickets/MyTicketsPage'
 import { QueuePage } from '@/features/tickets/QueuePage'
 import { TicketDetailPage } from '@/features/tickets/TicketDetailPage'
+import { KbEditorPage } from './features/knowledge/KbEditorPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,15 +50,6 @@ function HomeRedirect() {
   if (user.role === 'ADMIN') return <Navigate to="/dashboard" replace />
   if (user.role === 'IT_AGENT') return <Navigate to="/queue" replace />
   return <Navigate to="/my-tickets" replace />
-}
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center">
-      <h2 className="text-lg font-medium text-slate-700">{title}</h2>
-      <p className="mt-1 text-sm text-slate-500">Màn hình này sẽ được xây dựng ở task tiếp theo.</p>
-    </div>
-  )
 }
 
 export default function App() {
@@ -88,7 +83,11 @@ export default function App() {
               />
 
               <Route path="/chat" element={<ChatPage />} />
-              <Route path="/kb" element={<Placeholder title="Tài liệu hướng dẫn" />} />
+              <Route path="/kb" element={<KbListPage />} />
+              <Route path="/kb/new" element={<KbEditorPage />} />
+              <Route path="/kb/:slug" element={<KbDetailPage />} />
+              <Route path="/kb/:slug/edit" element={<KbEditorPage />} />
+
               <Route
                 path="/dashboard"
                 element={
