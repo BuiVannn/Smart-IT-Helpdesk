@@ -1,9 +1,10 @@
 /**
  * Kiểu dữ liệu dùng chung.
  *
- * ⚠️ Sau khi backend xuất openapi.json (task T17), chạy `npm run gen:api`
- * để sinh types.gen.ts và dần thay thế file này. Khi đó đổi API mà quên
- * sửa frontend sẽ LỖI LÚC BIÊN DỊCH thay vì lỗi lúc chạy.
+ * ⚠️ File này viết TAY, phải tự khớp với schema của backend. Muốn đổi API mà
+ * quên sửa frontend là LỖI LÚC BIÊN DỊCH thay vì lỗi lúc chạy thì cài lại
+ * `openapi-typescript` và sinh từ openapi.json (task T17) — đã gỡ khỏi
+ * package.json vì openapi.json chưa tồn tại, script chạy là hỏng.
  */
 
 export type UserRole = 'EMPLOYEE' | 'IT_AGENT' | 'ADMIN'
