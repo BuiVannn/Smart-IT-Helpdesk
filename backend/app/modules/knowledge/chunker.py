@@ -113,14 +113,25 @@ class TextChunker:
                 for part in _split_long_text(body, self.max_tokens, self.overlap_tokens):
                     raw.append((heading, part))
 
-        # Gộp chunk quá ngắn với chunk kế tiếp — tránh chunk rác
+        # Gộp chunk quá ngắn với chunk trước — tránh chunk rác.
+        #
+        # ⚠️ CHỈ gộp khi kết quả VẪN dưới max_tokens. Không có điều kiện này,
+        # bước gộp sẽ hoàn tác cả bước cắt chunk dài ở trên và tạo ra một
+        # chunk khổng lồ (lỗi đã bị test bắt: 8934 token với giới hạn 100).
         merged: list[tuple[str | None, str]] = []
         for heading, body in raw:
             if merged and estimate_tokens(body) < self.min_tokens:
                 prev_heading, prev_body = merged[-1]
-                merged[-1] = (prev_heading, f"{prev_body}\n\n{body}")
-            else:
-                merged.append((heading, body))
+                # Giữ lại tiêu đề của mục bị gộp vào trong phần nội dung.
+                # Nếu bỏ đi, chunk sẽ chứa nội dung "Bước 2" nhưng chỉ được
+                # gắn nhãn "Mục: Bước 1" — sai lệch, làm hỏng cả embedding
+                # lẫn khả năng LLM hiểu đoạn đó nói về cái gì.
+                addition = f"## {heading}\n{body}" if heading else body
+                combined = f"{prev_body}\n\n{addition}"
+                if estimate_tokens(combined) <= self.max_tokens:
+                    merged[-1] = (prev_heading, combined)
+                    continue
+            merged.append((heading, body))
 
         chunks: list[Chunk] = []
         for i, (heading, body) in enumerate(merged):
