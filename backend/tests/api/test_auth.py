@@ -263,7 +263,19 @@ class TestDoiMatKhau:
             f"{BASE}/change-password",
             json={"currentPassword": "SaiHoanToan1", "newPassword": "MatKhauMoi456"},
         )
-        assert response.status_code == 401
+        assert response.status_code == 403
+        assert response.json()["error"]["code"] == "FORBIDDEN"
+
+    def test_sai_mat_khau_hien_tai_khong_lam_mat_hieu_luc_token(self, client, make_user, login):
+        login(make_user())
+
+        response = client.post(
+            f"{BASE}/change-password",
+            json={"currentPassword": "SaiHoanToan1", "newPassword": "MatKhauMoi456"},
+        )
+
+        assert response.status_code == 403
+        assert client.get("/api/v1/users/me").status_code == 200
 
     def test_mat_khau_moi_trung_mat_khau_cu_thi_tu_choi(self, client, make_user, login):
         login(make_user())

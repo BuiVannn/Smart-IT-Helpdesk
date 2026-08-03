@@ -20,6 +20,7 @@ from app.core.config import settings
 from app.core.exceptions import (
     AccountDisabledError,
     ConflictError,
+    ForbiddenError,
     InvalidCredentialsError,
     UnauthenticatedError,
     ValidationError,
@@ -213,7 +214,11 @@ class AuthService:
 
     def change_password(self, user: User, current_password: str, new_password: str) -> int:
         if not verify_password(current_password, user.password_hash):
-            raise InvalidCredentialsError("Mật khẩu hiện tại không đúng")
+            logger.warning(
+                "đổi mật khẩu thất bại: sai mật khẩu hiện tại",
+                extra={"extra_fields": {"user_id": str(user.id), "email": user.email}},
+            )
+            raise ForbiddenError("Mật khẩu hiện tại không đúng")
 
         if verify_password(new_password, user.password_hash):
             raise ValidationError("Mật khẩu mới phải khác mật khẩu hiện tại")
