@@ -8,6 +8,7 @@ from fastapi import APIRouter
 
 from app.modules.auth.router import router as auth_router
 from app.modules.chatbot.router import router as chat_router
+from app.modules.feedback.router import router as feedback_router
 from app.modules.knowledge.router import router as kb_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.reports.router import router as reports_router
@@ -19,6 +20,7 @@ api_router = APIRouter()
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(users_router, prefix="/users", tags=["users"])
 api_router.include_router(tickets_router, prefix="/tickets", tags=["tickets"])
+api_router.include_router(feedback_router, prefix="/tickets", tags=["feedback"])
 api_router.include_router(chat_router, prefix="/chat", tags=["chatbot"])
 api_router.include_router(kb_router, prefix="/kb", tags=["knowledge"])
 api_router.include_router(reports_router, prefix="/reports", tags=["reports"])

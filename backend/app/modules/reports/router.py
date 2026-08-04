@@ -7,8 +7,10 @@ chính mình", nhưng chưa story nào định nghĩa "của chính mình" nghĩ
 một báo cáo toàn hệ thống, nên ở đây chọn phương án chặt: chưa định nghĩa
 được thì chưa mở. Nới quyền về sau dễ hơn thu hồi quyền đã trót mở.
 
-`/reports/satisfaction` (US-42) vẫn trống — nó thuộc F8, và chưa có đường nào
-ghi vào `ticket_ratings` nên chưa có gì để báo cáo.
+`/reports/satisfaction` (F8 — US-42) cũng chỉ mở cho Admin, cùng lý do: đây
+là báo cáo toàn hệ thống dùng để đánh giá hiệu suất đội IT, không phải số
+liệu cá nhân của một Agent — xem US-43 ở `feedback/router.py` cho trường hợp
+đó (`GET /tickets/ratings/mine`).
 """
 
 import csv
@@ -24,6 +26,7 @@ from app.core.dependencies import require_admin, require_agent
 from app.db.session import get_db
 from app.modules.reports import cache as report_cache
 from app.modules.reports.dashboard import DashboardService
+from app.modules.reports.satisfaction import SatisfactionService
 from app.modules.reports.schemas import (
     AgentWorkloadResponse,
     AgentWorkloadRowResponse,
@@ -34,6 +37,8 @@ from app.modules.reports.schemas import (
     OverviewResponse,
     RateBucket,
     ResolutionTimeResponse,
+    SatisfactionBucketResponse,
+    SatisfactionResponse,
 )
 from app.modules.reports.service import AiAccuracyService
 from app.modules.users.models import User
@@ -238,6 +243,52 @@ def export_tickets(
 
 def _count(bucket) -> CountBucketResponse:
     return CountBucketResponse(key=bucket.key, label=bucket.label, count=bucket.count)
+
+
+# ── F8 — Đánh giá sau xử lý (US-42) ────────────────────────────────────
+
+
+@router.get(
+    "/satisfaction",
+    response_model=SatisfactionResponse,
+    summary="Tổng hợp điểm hài lòng theo Agent, loại sự cố và tháng (US-42)",
+)
+def satisfaction(
+    from_at: datetime | None = Query(default=None, alias="from"),
+    to_at: datetime | None = Query(default=None, alias="to"),
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> SatisfactionResponse:
+    """Mặc định 30 ngày gần nhất, cùng cách chọn khung thời gian với dashboard.
+
+    Chưa cache — cùng lý do với `ai_accuracy`: quy mô hiện tại truy vấn dưới
+    50 ms, thêm cache bây giờ chỉ thêm một chỗ có thể trả số cũ mà chưa giải
+    quyết vấn đề tốc độ nào có thật.
+    """
+    start, end = DashboardService.resolve_window(from_at, to_at)
+    report = SatisfactionService(db).report(start, end)
+
+    return SatisfactionResponse(
+        from_at=report.from_at,
+        to_at=report.to_at,
+        overall=_satisfaction_bucket(report.overall),
+        by_agent=[_satisfaction_bucket(b) for b in report.by_agent],
+        by_category=[_satisfaction_bucket(b) for b in report.by_category],
+        by_month=[_satisfaction_bucket(b) for b in report.by_month],
+        generated_at=datetime.now(UTC),
+    )
+
+
+def _satisfaction_bucket(bucket) -> SatisfactionBucketResponse:
+    return SatisfactionBucketResponse(
+        key=bucket.key,
+        label=bucket.label,
+        rating_count=bucket.rating_count,
+        avg_score=bucket.avg_score,
+        distribution={str(score): count for score, count in bucket.distribution.items()},
+        closed_tickets=bucket.closed_tickets,
+        response_rate=bucket.response_rate,
+    )
 
 
 # ★ CHỐNG CSV INJECTION (US-40).
