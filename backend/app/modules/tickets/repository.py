@@ -195,7 +195,10 @@ class CommentRepository:
         stmt = (
             select(TicketComment)
             .options(selectinload(TicketComment.author))
-            .where(TicketComment.ticket_id == ticket_id)
+            .where(
+                TicketComment.ticket_id == ticket_id,
+                TicketComment.deleted_at.is_(None),
+            )
             .order_by(TicketComment.created_at.asc())
         )
         if not include_internal:
@@ -211,6 +214,19 @@ class CommentRepository:
                 TicketComment.author_id != requester_id,
             )
         ).scalar_one()
+
+    def get_by_id(self, ticket_id: UUID, comment_id: UUID) -> TicketComment | None:
+        return self.session.execute(
+            select(TicketComment).where(
+                TicketComment.id == comment_id,
+                TicketComment.ticket_id == ticket_id,
+                TicketComment.deleted_at.is_(None),
+            )
+        ).scalar_one_or_none()
+
+    def soft_delete(self, comment: TicketComment) -> None:
+        comment.deleted_at = datetime.now(UTC)
+        self.session.flush()
 
 
 class TicketEventRepository:
