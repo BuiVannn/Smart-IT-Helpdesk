@@ -334,3 +334,45 @@ export interface AgentWorkloadReport {
   rows: AgentWorkloadRow[]
   generatedAt: string
 }
+
+/* ── US-22 — Báo cáo độ chính xác AI (F3) ───────────────────────── */
+
+export interface AiAccuracyBucket {
+  key: string
+  label: string
+  applied: number
+  accepted: number
+  corrected: number
+  decided: number
+  /** null khi chưa có ticket nào được chốt trong nhóm này */
+  acceptanceRate: number | null
+}
+
+export interface AiConfusionRow {
+  aiCategory: string
+  finalCategory: string
+  count: number
+}
+
+export interface AiAccuracyReport {
+  from: string
+  to: string
+  totalRuns: number
+  applied: number
+  accepted: number
+  corrected: number
+  decided: number
+  /** null khi chưa có dữ liệu đủ để tính */
+  acceptanceRate: number | null
+  lowConfidenceRate: number | null
+  failureRate: number | null
+  avgLatencyMs: number | null
+  avgConfidence: number | null
+  estimatedCostUsd: number | null
+  statusBreakdown: Record<string, number>
+  byCategory: AiAccuracyBucket[]
+  byWeek: AiAccuracyBucket[]
+  confusion: AiConfusionRow[]
+  generatedAt: string
+  cached: boolean
+}

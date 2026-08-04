@@ -19,6 +19,9 @@ import { ChatPage } from '@/features/chat/ChatPage'
 const DashboardPage = lazy(() =>
   import('@/features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })),
 )
+const AiAccuracyPage = lazy(() =>
+  import('@/features/dashboard/AiAccuracyPage').then((m) => ({ default: m.AiAccuracyPage })),
+)
 import { CreateTicketPage } from '@/features/tickets/CreateTicketPage'
 import { MyTicketsPage } from '@/features/tickets/MyTicketsPage'
 import { QueuePage } from '@/features/tickets/QueuePage'
@@ -104,6 +107,16 @@ export default function App() {
                 element={
                   <ProtectedRoute roles={['ADMIN']}>
                     <UsersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reports/ai-accuracy"
+                element={
+                  <ProtectedRoute roles={['IT_AGENT', 'ADMIN']}>
+                    <Suspense fallback={<LoadingBlock label="Đang tải báo cáo AI…" />}>
+                      <AiAccuracyPage />
+                    </Suspense>
                   </ProtectedRoute>
                 }
               />

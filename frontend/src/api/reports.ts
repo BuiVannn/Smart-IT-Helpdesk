@@ -1,5 +1,5 @@
 import { api, tokenStore } from '@/api/client'
-import type { AgentWorkloadReport, Overview, ResolutionTimeReport } from '@/types'
+import type { AgentWorkloadReport, AiAccuracyReport, Overview, ResolutionTimeReport } from '@/types'
 
 /** Khoảng thời gian mặc định của dashboard: 30 ngày gần nhất (US-37). */
 export function defaultRange(days = 30): { from: string; to: string } {
@@ -21,6 +21,11 @@ export const reportsApi = {
 
   agentWorkload: (from: string, to: string) =>
     api.get<AgentWorkloadReport>(`/reports/agent-workload?${range(from, to)}`),
+
+  /** Báo cáo độ chính xác phân loại AI (US-22).
+   *  Quyền: IT_AGENT và ADMIN. */
+  aiAccuracy: (from: string, to: string) =>
+    api.get<AiAccuracyReport>(`/reports/ai-accuracy?${range(from, to)}`),
 
   /**
    * Tải file CSV.
