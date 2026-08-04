@@ -4,6 +4,11 @@ Bảng `ticket_ratings` đã tồn tại sẵn với UNIQUE trên `ticket_id` v�
 `score BETWEEN 1 AND 5` (xem `migrations/versions/0002_initial_schema.py`)
 — phần khó nhất đã xong ở tầng database. Tầng service ở đây chỉ cần dịch
 bốn quy tắc nghiệp vụ sang đúng loại lỗi HTTP.
+
+
+US-42 (Admin tổng hợp điểm hài lòng) KHÔNG nằm ở đây — đó là báo cáo toàn
+hệ thống, thuộc `app/modules/reports/satisfaction.py`, cùng chỗ với các báo
+cáo F7 khác.
 """
 
 from __future__ import annotations
@@ -15,8 +20,10 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationError
 from app.core.logging import get_logger
+from app.core.pagination import PageParams
 from app.modules.feedback.models import TicketRating
 from app.modules.feedback.repository import FeedbackRepository
+from app.modules.feedback.schemas import AgentRatingItem
 from app.modules.tickets.constants import TicketStatus
 from app.modules.tickets.models import Ticket
 from app.modules.users.models import User
@@ -87,6 +94,30 @@ class FeedbackService:
             extra={"extra_fields": {"ticket_id": str(ticket_id), "score": score}},
         )
         return rating
+
+    def list_my_ratings(
+        self, agent: User, params: PageParams
+    ) -> tuple[list[AgentRatingItem], int]:
+        """Agent xem đánh giá về mình, ẩn danh người chấm (US-43).
+ 
+        Lọc theo `agent.id` ngay ở tầng repository — không có tham số nào
+        cho phép xem đánh giá của người khác, nên router chỉ cần gắn
+        `require_agent` là đủ, không cần thêm kiểm tra quyền ở đây.
+        """
+        rows, total = self.ratings.list_for_agent(agent.id, params)
+        items = [
+            AgentRatingItem(
+                id=rating_id,
+                ticket_id=ticket_id,
+                ticket_code=ticket_code,
+                ticket_title=ticket_title,
+                score=score,
+                comment=comment,
+                created_at=created_at,
+            )
+            for rating_id, ticket_id, ticket_code, ticket_title, score, comment, created_at in rows
+        ]
+        return items, total
 
     def _get_ticket_owned(self, ticket_id: UUID, user: User) -> Ticket:
         ticket = self.db.get(Ticket, ticket_id)
