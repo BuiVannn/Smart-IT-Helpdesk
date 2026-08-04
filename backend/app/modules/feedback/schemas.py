@@ -40,7 +40,7 @@ class RatingResponse(ResponseModel):
     is_editable: bool = Field(serialization_alias="isEditable")
 
     @classmethod
-    def from_model(cls, rating: "TicketRating") -> RatingResponse:
+    def from_model(cls, rating: TicketRating) -> RatingResponse:
         return cls(
             id=rating.id,
             ticket_id=rating.ticket_id,
