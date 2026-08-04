@@ -478,6 +478,43 @@ class TicketService:
             include_internal=TicketAccessPolicy.can_see_internal_comments(user),
         )
 
+    def update_comment(
+        self, user: User, ticket_id: UUID, comment_id: UUID, body: str
+    ) -> TicketComment:
+        ticket = self._load(user, ticket_id)  # 404 nếu không có quyền xem (BR-09)
+
+        if ticket.status == TicketStatus.CLOSED:
+            raise ValidationError("Ticket đã đóng, không thể sửa bình luận")
+
+        comment = self.comments.get_by_id(ticket_id, comment_id)
+        if comment is None:
+            raise NotFoundError("Không tìm thấy bình luận")
+
+        if comment.author_id != user.id:
+            raise ForbiddenError("Chỉ tác giả mới được sửa bình luận này")
+
+        comment.body = body.strip()
+        comment.edited_at = datetime.now(UTC)
+        self.db.commit()
+        self.db.refresh(comment)
+        return comment
+
+    def delete_comment(self, user: User, ticket_id: UUID, comment_id: UUID) -> None:
+        ticket = self._load(user, ticket_id)
+
+        if ticket.status == TicketStatus.CLOSED:
+            raise ValidationError("Ticket đã đóng, không thể xoá bình luận")
+
+        comment = self.comments.get_by_id(ticket_id, comment_id)
+        if comment is None:
+            raise NotFoundError("Không tìm thấy bình luận")
+
+        if comment.author_id != user.id and user.role != UserRole.ADMIN:
+            raise ForbiddenError("Bạn không có quyền xoá bình luận này")
+
+        self.comments.soft_delete(comment)
+        self.db.commit()
+
     # ── US-17: Lịch sử thay đổi ───────────────────────────────────────
 
     def list_events(self, user: User, ticket_id: UUID) -> list[TicketEvent]:

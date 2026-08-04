@@ -66,6 +66,10 @@ class CreateCommentRequest(StrictModel):
     is_internal: bool = Field(default=False, alias="isInternal")
 
 
+class UpdateCommentRequest(StrictModel):
+    body: str = Field(min_length=1, max_length=5000)
+
+
 # ─────────────── Output ───────────────
 
 

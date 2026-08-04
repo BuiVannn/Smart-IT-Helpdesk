@@ -32,6 +32,7 @@ from app.modules.tickets.schemas import (
     QueueStatsResponse,
     TicketListItem,
     TicketResponse,
+    UpdateCommentRequest,
     UpdateTicketRequest,
 )
 from app.modules.tickets.service import TicketService
@@ -224,6 +225,35 @@ def create_comment(
     service: TicketService = Depends(get_ticket_service),
 ) -> CommentResponse:
     return service.add_comment(current_user, ticket_id, data.body, data.is_internal)
+
+
+@router.patch(
+    "/{ticket_id}/comments/{comment_id}",
+    response_model=CommentResponse,
+    summary="Sửa bình luận (US-15)",
+)
+def update_comment(
+    ticket_id: UUID,
+    comment_id: UUID,
+    data: UpdateCommentRequest,
+    current_user: User = Depends(get_current_user),
+    service: TicketService = Depends(get_ticket_service),
+) -> CommentResponse:
+    return service.update_comment(current_user, ticket_id, comment_id, data.body)
+
+
+@router.delete(
+    "/{ticket_id}/comments/{comment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Xoá bình luận (US-15)",
+)
+def delete_comment(
+    ticket_id: UUID,
+    comment_id: UUID,
+    current_user: User = Depends(get_current_user),
+    service: TicketService = Depends(get_ticket_service),
+) -> None:
+    service.delete_comment(current_user, ticket_id, comment_id)
 
 
 @router.get(
