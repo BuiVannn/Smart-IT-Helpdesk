@@ -27,12 +27,10 @@ class FeedbackRepository:
         self.session.add(rating)
         self.session.flush()
         return rating
-    
-    def list_for_agent(
-        self, agent_id: UUID, params: PageParams
-    ) -> tuple[list[Row], int]:
+
+    def list_for_agent(self, agent_id: UUID, params: PageParams) -> tuple[list[Row], int]:
         """Đánh giá của các ticket mà `agent_id` xử lý (US-43).
- 
+
         Nối với `tickets` chỉ để lấy `code`/`title` hiển thị — KHÔNG có
         `rater_id` trong tập cột trả về, đây chính là cách ẩn danh người
         chấm: dữ liệu không bao giờ rời khỏi tầng này chứ không phải bị lọc
@@ -53,13 +51,10 @@ class FeedbackRepository:
             .where(TicketRating.agent_id == agent_id)
             .order_by(TicketRating.created_at.desc())
         )
- 
+
         total = self.session.execute(
-            select(func.count())
-            .select_from(TicketRating)
-            .where(TicketRating.agent_id == agent_id)
+            select(func.count()).select_from(TicketRating).where(TicketRating.agent_id == agent_id)
         ).scalar_one()
- 
+
         rows = self.session.execute(base.offset(params.offset).limit(params.limit)).all()
         return list(rows), int(total)
-    

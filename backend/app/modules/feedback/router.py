@@ -95,4 +95,3 @@ def update_rating(
 ) -> RatingResponse:
     rating = service.update(current_user, ticket_id, data.score, data.comment)
     return RatingResponse.from_model(rating)
-

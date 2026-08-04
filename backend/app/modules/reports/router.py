@@ -246,8 +246,8 @@ def _count(bucket) -> CountBucketResponse:
 
 
 # ── F8 — Đánh giá sau xử lý (US-42) ────────────────────────────────────
- 
- 
+
+
 @router.get(
     "/satisfaction",
     response_model=SatisfactionResponse,
@@ -260,14 +260,14 @@ def satisfaction(
     db: Session = Depends(get_db),
 ) -> SatisfactionResponse:
     """Mặc định 30 ngày gần nhất, cùng cách chọn khung thời gian với dashboard.
- 
+
     Chưa cache — cùng lý do với `ai_accuracy`: quy mô hiện tại truy vấn dưới
     50 ms, thêm cache bây giờ chỉ thêm một chỗ có thể trả số cũ mà chưa giải
     quyết vấn đề tốc độ nào có thật.
     """
     start, end = DashboardService.resolve_window(from_at, to_at)
     report = SatisfactionService(db).report(start, end)
- 
+
     return SatisfactionResponse(
         from_at=report.from_at,
         to_at=report.to_at,
@@ -277,8 +277,8 @@ def satisfaction(
         by_month=[_satisfaction_bucket(b) for b in report.by_month],
         generated_at=datetime.now(UTC),
     )
- 
- 
+
+
 def _satisfaction_bucket(bucket) -> SatisfactionBucketResponse:
     return SatisfactionBucketResponse(
         key=bucket.key,
@@ -289,7 +289,7 @@ def _satisfaction_bucket(bucket) -> SatisfactionBucketResponse:
         closed_tickets=bucket.closed_tickets,
         response_rate=bucket.response_rate,
     )
-    
+
 
 # ★ CHỐNG CSV INJECTION (US-40).
 #

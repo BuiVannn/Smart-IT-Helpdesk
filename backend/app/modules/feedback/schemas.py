@@ -49,16 +49,16 @@ class RatingResponse(ResponseModel):
             created_at=rating.created_at,
             is_editable=rating.is_editable(),
         )
-        
+
 
 class AgentRatingItem(ResponseModel):
     """Một đánh giá trong danh sách "đánh giá về tôi" của Agent (US-43).
- 
+
     ★ CỐ Ý KHÔNG có trường nào định danh người chấm — không `raterId`, không
     `raterName`. AC của US-43 yêu cầu ẩn danh; repository tầng dưới còn không
     truy vấn `rater_id`, nên không có gì để lộ dù schema này có lỗi.
     """
- 
+
     id: UUID = Field(serialization_alias="ratingId")
     ticket_id: UUID = Field(serialization_alias="ticketId")
     ticket_code: str = Field(serialization_alias="ticketCode")
@@ -66,4 +66,3 @@ class AgentRatingItem(ResponseModel):
     score: int
     comment: str | None = None
     created_at: datetime = Field(serialization_alias="createdAt")
-           

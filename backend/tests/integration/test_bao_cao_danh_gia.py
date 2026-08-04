@@ -293,4 +293,3 @@ class TestQuyenTruyCapHTTP:
             assert set(bucket["distribution"].keys()) <= {"1", "2", "3", "4", "5"}
             assert "ratingCount" in bucket
             assert "closedTickets" in bucket
-            

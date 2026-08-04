@@ -271,5 +271,3 @@ class SatisfactionService:
             bucket.closed_tickets = int(count)
 
         return sorted(buckets.values(), key=lambda b: b.key)
-    
-    

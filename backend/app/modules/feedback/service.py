@@ -39,9 +39,7 @@ class FeedbackService:
         self.db = session
         self.ratings = FeedbackRepository(session)
 
-    def create(
-        self, user: User, ticket_id: UUID, score: int, comment: str | None
-    ) -> TicketRating:
+    def create(self, user: User, ticket_id: UUID, score: int, comment: str | None) -> TicketRating:
         ticket = self._get_ticket_owned(ticket_id, user)
 
         if ticket.status not in RATEABLE_STATUSES:
@@ -75,9 +73,7 @@ class FeedbackService:
             raise NotFoundError("Ticket chưa được đánh giá")
         return rating
 
-    def update(
-        self, user: User, ticket_id: UUID, score: int, comment: str | None
-    ) -> TicketRating:
+    def update(self, user: User, ticket_id: UUID, score: int, comment: str | None) -> TicketRating:
         self._get_ticket_owned(ticket_id, user)
         rating = self.ratings.get_by_ticket(ticket_id)
         if rating is None:
@@ -95,11 +91,9 @@ class FeedbackService:
         )
         return rating
 
-    def list_my_ratings(
-        self, agent: User, params: PageParams
-    ) -> tuple[list[AgentRatingItem], int]:
+    def list_my_ratings(self, agent: User, params: PageParams) -> tuple[list[AgentRatingItem], int]:
         """Agent xem đánh giá về mình, ẩn danh người chấm (US-43).
- 
+
         Lọc theo `agent.id` ngay ở tầng repository — không có tham số nào
         cho phép xem đánh giá của người khác, nên router chỉ cần gắn
         `require_agent` là đủ, không cần thêm kiểm tra quyền ở đây.
@@ -124,7 +118,7 @@ class FeedbackService:
         if ticket is None:
             logger.warning(f"Ticket {ticket_id} not found")
             raise NotFoundError("Không tìm thấy ticket")
-        
+
         # ★ Chuyển cả hai về chuỗi để so sánh an toàn, tránh lỗi kiểu dữ liệu
         if str(ticket.requester_id) != str(user.id):
             logger.warning(

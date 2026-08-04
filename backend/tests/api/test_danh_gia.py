@@ -74,9 +74,7 @@ class TestTaoDanhGia:
         dua_toi_closed(login, nhan_vien, agent, ticket["id"], ticket["version"])
 
         c = login(nhan_vien)
-        r = c.post(
-            f"/api/v1/tickets/{ticket['id']}/rating", json={"score": 5, "comment": "Tốt"}
-        )
+        r = c.post(f"/api/v1/tickets/{ticket['id']}/rating", json={"score": 5, "comment": "Tốt"})
 
         assert r.status_code == 201, r.text
         body = r.json()
@@ -181,25 +179,23 @@ class TestSuaDanhGia:
 
 class TestXemDanhGiaCuaAgent:
     """`GET /tickets/ratings/mine` — Agent xem đánh giá về mình (US-43)."""
- 
+
     def test_agent_xem_duoc_danh_gia_cua_minh(
         self, client, make_user, login, sla_policies, ticket_category
     ):
         nhan_vien = make_user()
         agent = make_user(role=UserRole.IT_AGENT)
- 
+
         ticket = tao_ticket(login, nhan_vien)
         dua_toi_closed(login, nhan_vien, agent, ticket["id"], ticket["version"])
- 
+
         c = login(nhan_vien)
-        r = c.post(
-            f"/api/v1/tickets/{ticket['id']}/rating", json={"score": 4, "comment": "Ổn"}
-        )
+        r = c.post(f"/api/v1/tickets/{ticket['id']}/rating", json={"score": 4, "comment": "Ổn"})
         assert r.status_code == 201, r.text
- 
+
         c = login(agent)
         r = c.get("/api/v1/tickets/ratings/mine")
- 
+
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["pagination"]["totalItems"] == 1
@@ -208,93 +204,90 @@ class TestXemDanhGiaCuaAgent:
         assert item["comment"] == "Ổn"
         assert item["ticketId"] == ticket["id"]
         assert item["ticketCode"] == ticket["code"]
- 
-    def test_an_danh_nguoi_cham_diem(
-        self, client, make_user, login, sla_policies, ticket_category
-    ):
+
+    def test_an_danh_nguoi_cham_diem(self, client, make_user, login, sla_policies, ticket_category):
         """★ AC của US-42/US-43: Agent chỉ thấy điểm và nhận xét, không thấy
         ai chấm. Không có `raterId`/`raterName` (hay bất kỳ field nào định
         danh người đánh giá) trong response — kể cả dưới tên khác."""
         nhan_vien = make_user()
         agent = make_user(role=UserRole.IT_AGENT)
- 
+
         ticket = tao_ticket(login, nhan_vien)
         dua_toi_closed(login, nhan_vien, agent, ticket["id"], ticket["version"])
- 
+
         c = login(nhan_vien)
         r = c.post(f"/api/v1/tickets/{ticket['id']}/rating", json={"score": 5})
         assert r.status_code == 201, r.text
- 
+
         c = login(agent)
         r = c.get("/api/v1/tickets/ratings/mine")
- 
+
         item = r.json()["data"][0]
         loi_bi_cam = {"raterId", "raterName", "rater_id", "rater", "nguoiDanhGia", "requesterId"}
         assert loi_bi_cam.isdisjoint(item.keys())
- 
+
     def test_agent_khong_thay_danh_gia_cua_agent_khac(
         self, client, make_user, login, sla_policies, ticket_category
     ):
         nhan_vien = make_user()
         agent_a = make_user(role=UserRole.IT_AGENT)
         agent_b = make_user(role=UserRole.IT_AGENT)
- 
+
         ticket = tao_ticket(login, nhan_vien)
         dua_toi_closed(login, nhan_vien, agent_a, ticket["id"], ticket["version"])
- 
+
         c = login(nhan_vien)
         r = c.post(f"/api/v1/tickets/{ticket['id']}/rating", json={"score": 3})
         assert r.status_code == 201, r.text
- 
+
         c = login(agent_b)
         r = c.get("/api/v1/tickets/ratings/mine")
- 
+
         assert r.status_code == 200, r.text
         assert r.json()["pagination"]["totalItems"] == 0
- 
+
     def test_ticket_chua_duoc_danh_gia_khong_xuat_hien(
         self, client, make_user, login, sla_policies, ticket_category
     ):
         nhan_vien = make_user()
         agent = make_user(role=UserRole.IT_AGENT)
- 
+
         ticket = tao_ticket(login, nhan_vien)
         dua_toi_closed(login, nhan_vien, agent, ticket["id"], ticket["version"])
         # Không gửi đánh giá nào.
- 
+
         c = login(agent)
         r = c.get("/api/v1/tickets/ratings/mine")
- 
+
         assert r.status_code == 200, r.text
         assert r.json()["pagination"]["totalItems"] == 0
- 
+
     def test_nhan_vien_bi_tu_choi(self, client, make_user, login):
         """`require_agent` chỉ cho IT_AGENT và ADMIN — Employee không có
         \"đánh giá về mình\" vì Employee không xử lý ticket."""
         nhan_vien = make_user()
         c = login(nhan_vien)
- 
+
         r = c.get("/api/v1/tickets/ratings/mine")
- 
+
         assert r.status_code == 403
- 
+
     def test_phan_trang(self, client, make_user, login, sla_policies, ticket_category):
         nhan_vien = make_user()
         agent = make_user(role=UserRole.IT_AGENT)
- 
+
         for _ in range(3):
             ticket = tao_ticket(login, nhan_vien)
             dua_toi_closed(login, nhan_vien, agent, ticket["id"], ticket["version"])
             c = login(nhan_vien)
             r = c.post(f"/api/v1/tickets/{ticket['id']}/rating", json={"score": 5})
             assert r.status_code == 201, r.text
- 
+
         c = login(agent)
         r = c.get("/api/v1/tickets/ratings/mine", params={"pageSize": 2, "page": 1})
- 
+
         assert r.status_code == 200, r.text
         body = r.json()
         assert len(body["data"]) == 2
         assert body["pagination"]["totalItems"] == 3
-        assert body["pagination"]["totalPages"] == 2      
-        
+        assert body["pagination"]["totalPages"] == 2

@@ -148,17 +148,17 @@ class AgentWorkloadResponse(ResponseModel):
 
 
 # ── F8 — Đánh giá sau xử lý (US-42) ────────────────────────────────────
- 
- 
+
+
 class SatisfactionBucketResponse(ResponseModel):
     """Một dòng: toàn hệ thống, một Agent, một loại sự cố, hoặc một tháng.
- 
+
     `responseRate` là `null` khi kỳ báo cáo chưa có ticket nào đã đóng —
     KHÁC với 0 (đã đóng nhiều ticket nhưng không ai đánh giá). `avgScore`
     luôn đi kèm `ratingCount`/`responseRate`: điểm cao mà tỉ lệ phản hồi
     thấp thì không đáng tin (US-42, AC 2), frontend phải hiển thị cả hai.
     """
- 
+
     key: str
     label: str
     rating_count: int = Field(serialization_alias="ratingCount")
@@ -166,11 +166,11 @@ class SatisfactionBucketResponse(ResponseModel):
     distribution: dict[str, int]
     closed_tickets: int = Field(serialization_alias="closedTickets")
     response_rate: float | None = Field(default=None, serialization_alias="responseRate")
- 
- 
+
+
 class SatisfactionResponse(ResponseModel):
     """US-42 — dữ liệu cho báo cáo hiệu suất đội IT theo điểm hài lòng."""
- 
+
     from_at: datetime = Field(serialization_alias="from")
     to_at: datetime = Field(serialization_alias="to")
     overall: SatisfactionBucketResponse
