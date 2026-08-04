@@ -20,10 +20,10 @@ from app.core.dependencies import get_current_user, require_agent
 from app.core.pagination import Page, PageParams, page_params
 from app.db.session import get_db
 from app.modules.feedback.schemas import (
+    AgentRatingItem,
     CreateRatingRequest,
     RatingResponse,
     UpdateRatingRequest,
-    AgentRatingItem,
 )
 from app.modules.feedback.service import FeedbackService
 from app.modules.users.models import User

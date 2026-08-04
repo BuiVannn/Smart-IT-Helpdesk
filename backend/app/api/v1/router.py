@@ -8,12 +8,13 @@ from fastapi import APIRouter
 
 from app.modules.auth.router import router as auth_router
 from app.modules.chatbot.router import router as chat_router
+from app.modules.feedback.router import router as feedback_router
 from app.modules.knowledge.router import router as kb_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.reports.router import router as reports_router
 from app.modules.tickets.router import router as tickets_router
 from app.modules.users.router import router as users_router
-from app.modules.feedback.router import router as feedback_router
+
 api_router = APIRouter()
 
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
