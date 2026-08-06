@@ -7,6 +7,7 @@ interface AuthState {
   user: CurrentUser | null
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
+  register: (fullName: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -39,6 +40,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user)
   }, [])
 
+  // Đăng ký KHÔNG trả token — backend yêu cầu đăng nhập lại sau khi tạo tài khoản.
+  const register = useCallback(async (fullName: string, email: string, password: string) => {
+    await api.post('/auth/register', { fullName, email, password }, { skipAuth: true })
+  }, [])
+
   // Khôi phục phiên khi tải lại trang (F5).
   // Access token nằm trong bộ nhớ nên mất khi refresh — cookie refresh token
   // vẫn còn, nên gọi /auth/refresh để lấy access token mới.
@@ -68,8 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, isLoading, login, logout }),
-    [user, isLoading, login, logout],
+    () => ({ user, isLoading, login, register, logout }),
+    [user, isLoading, login, register, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
