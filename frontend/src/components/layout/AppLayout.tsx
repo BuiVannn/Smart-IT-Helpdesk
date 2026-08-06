@@ -18,6 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', label: 'Báo cáo', roles: ['ADMIN'] },
   { to: '/reports/ai-accuracy', label: 'Độ chính xác AI', roles: ['IT_AGENT', 'ADMIN'] },
   { to: '/reports/satisfaction', label: 'Hài lòng', roles: ['ADMIN'] },
+  { to: '/my-ratings', label: 'Đánh giá của tôi', roles: ['IT_AGENT', 'ADMIN'] },
   { to: '/admin/users', label: 'Quản trị người dùng', roles: ['ADMIN'] },
 ]
 

@@ -31,6 +31,9 @@ const SatisfactionReportPage = lazy(() =>
     default: m.SatisfactionReportPage,
   })),
 )
+const MyRatingsPage = lazy(() =>
+  import('@/features/dashboard/MyRatingsPage').then((m) => ({ default: m.MyRatingsPage })),
+)
 import { CreateTicketPage } from '@/features/tickets/CreateTicketPage'
 import { MyTicketsPage } from '@/features/tickets/MyTicketsPage'
 import { QueuePage } from '@/features/tickets/QueuePage'
@@ -132,6 +135,16 @@ export default function App() {
                   <ProtectedRoute roles={['ADMIN']}>
                     <Suspense fallback={<LoadingBlock label="Đang tải điểm hài lòng…" />}>
                       <SatisfactionReportPage />
+                    </Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/my-ratings"
+                element={
+                  <ProtectedRoute roles={['IT_AGENT', 'ADMIN']}>
+                    <Suspense fallback={<LoadingBlock label="Đang tải đánh giá…" />}>
+                      <MyRatingsPage />
                     </Suspense>
                   </ProtectedRoute>
                 }
