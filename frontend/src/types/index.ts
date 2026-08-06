@@ -13,6 +13,30 @@ export type TicketStatus =
   | 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'PENDING_REQUESTER'
   | 'RESOLVED' | 'CLOSED' | 'CANCELLED'
 
+/* ── F8 — Đánh giá sau xử lý (US-41 → US-43) ─────────────────────── */
+
+export interface TicketRating {
+  id: string
+  ticketId: string
+  score: number
+  comment: string | null
+  createdAt: string
+  /** `false` khi đã quá 24 giờ kể từ lúc đánh giá — không sửa được nữa (BR-08). */
+  isEditable: boolean
+}
+
+/** Một đánh giá trong danh sách "đánh giá về tôi" của Agent (US-43).
+ *  CỐ Ý KHÔNG có thông tin người chấm — backend ẩn danh. */
+export interface AgentRatingItem {
+  ratingId: string
+  ticketId: string
+  ticketCode: string
+  ticketTitle: string
+  score: number
+  comment: string | null
+  createdAt: string
+}
+
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
 export type SlaState = 'ON_TRACK' | 'AT_RISK' | 'BREACHED' | 'MET'
 export type AiStatus = 'PENDING' | 'APPLIED' | 'LOW_CONFIDENCE' | 'SKIPPED' | 'FAILED'

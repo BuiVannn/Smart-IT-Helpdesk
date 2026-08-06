@@ -7,6 +7,7 @@ import { AiStatusHint, PriorityBadge, SlaBadge, StatusBadge } from './badges'
 import { AiSuggestionPanel } from './AiSuggestionPanel'
 import { AssigneeSuggestionPanel } from './AssigneeSuggestionPanel'
 import { CommentThread } from './CommentThread'
+import { RatingPanel } from './RatingPanel'
 import { StatusActions } from './StatusActions'
 import { Timeline } from './Timeline'
 import { useTicket } from './hooks'
@@ -85,6 +86,15 @@ export function TicketDetailPage() {
                 {ticket.resolutionNote}
               </p>
             </section>
+          )}
+
+          {user && (
+            <RatingPanel
+              ticketId={ticket.id}
+              status={ticket.status}
+              requesterId={ticket.requester.id}
+              currentUserId={user.id}
+            />
           )}
 
           {user && <CommentThread ticketId={ticket.id} role={user.role} />}
