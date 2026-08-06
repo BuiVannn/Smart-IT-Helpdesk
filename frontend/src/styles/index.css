@@ -8,3 +8,26 @@
   /* Viền focus rõ ràng — bắt buộc cho khả năng tiếp cận bằng bàn phím */
   :focus-visible { @apply outline-2 outline-offset-2 outline-blue-600; }
 }
+
+/* ── Animation cho trang Đăng nhập / Đăng ký ─────────────────────────── */
+
+/* Card bay lên khi mount */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Bóng tròn trôi chậm background */
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-16px) scale(1.02); }
+}
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+.animate-float-delayed {
+  animation: float 8s ease-in-out 2s infinite;
+}
