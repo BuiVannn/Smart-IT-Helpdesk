@@ -6,6 +6,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { LoadingBlock } from '@/components/ui'
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider'
 import { LoginPage } from '@/features/auth/LoginPage'
+import { RegisterPage } from '@/features/auth/RegisterPage'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 import { ChatPage } from '@/features/chat/ChatPage'
 import { KbListPage } from '@/features/knowledge/KbListPage'
@@ -62,6 +63,7 @@ export default function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
             <Route
               element={
                 <ProtectedRoute>
