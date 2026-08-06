@@ -401,6 +401,32 @@ export interface AiAccuracyReport {
   cached: boolean
 }
 
+/* ── F8 — Tổng hợp điểm hài lòng (US-42) ────────────────────────── */
+
+export interface SatisfactionBucket {
+  key: string
+  label: string
+  ratingCount: number
+  /** null khi chưa có đánh giá nào trong nhóm này — hiện "—", không hiện 0 */
+  avgScore: number | null
+  /** Phân bố điểm 1-5: { "1": n, ..., "5": n } */
+  distribution: Record<string, number>
+  /** Số ticket đã đóng trong kỳ — mẫu số của responseRate */
+  closedTickets: number
+  /** null khi chưa có ticket đã đóng trong kỳ */
+  responseRate: number | null
+}
+
+export interface SatisfactionReport {
+  from: string
+  to: string
+  overall: SatisfactionBucket
+  byAgent: SatisfactionBucket[]
+  byCategory: SatisfactionBucket[]
+  byMonth: SatisfactionBucket[]
+  generatedAt: string
+}
+
 /* ── F5 — Kho tài liệu ──────────────────────────────────────────── */
 
 export interface KbCategory {
