@@ -13,6 +13,30 @@ export type TicketStatus =
   | 'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'PENDING_REQUESTER'
   | 'RESOLVED' | 'CLOSED' | 'CANCELLED'
 
+/* ── F8 — Đánh giá sau xử lý (US-41 → US-43) ─────────────────────── */
+
+export interface TicketRating {
+  id: string
+  ticketId: string
+  score: number
+  comment: string | null
+  createdAt: string
+  /** `false` khi đã quá 24 giờ kể từ lúc đánh giá — không sửa được nữa (BR-08). */
+  isEditable: boolean
+}
+
+/** Một đánh giá trong danh sách "đánh giá về tôi" của Agent (US-43).
+ *  CỐ Ý KHÔNG có thông tin người chấm — backend ẩn danh. */
+export interface AgentRatingItem {
+  ratingId: string
+  ticketId: string
+  ticketCode: string
+  ticketTitle: string
+  score: number
+  comment: string | null
+  createdAt: string
+}
+
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
 export type SlaState = 'ON_TRACK' | 'AT_RISK' | 'BREACHED' | 'MET'
 export type AiStatus = 'PENDING' | 'APPLIED' | 'LOW_CONFIDENCE' | 'SKIPPED' | 'FAILED'
@@ -375,6 +399,32 @@ export interface AiAccuracyReport {
   confusion: AiConfusionRow[]
   generatedAt: string
   cached: boolean
+}
+
+/* ── F8 — Tổng hợp điểm hài lòng (US-42) ────────────────────────── */
+
+export interface SatisfactionBucket {
+  key: string
+  label: string
+  ratingCount: number
+  /** null khi chưa có đánh giá nào trong nhóm này — hiện "—", không hiện 0 */
+  avgScore: number | null
+  /** Phân bố điểm 1-5: { "1": n, ..., "5": n } */
+  distribution: Record<string, number>
+  /** Số ticket đã đóng trong kỳ — mẫu số của responseRate */
+  closedTickets: number
+  /** null khi chưa có ticket đã đóng trong kỳ */
+  responseRate: number | null
+}
+
+export interface SatisfactionReport {
+  from: string
+  to: string
+  overall: SatisfactionBucket
+  byAgent: SatisfactionBucket[]
+  byCategory: SatisfactionBucket[]
+  byMonth: SatisfactionBucket[]
+  generatedAt: string
 }
 
 /* ── F5 — Kho tài liệu ──────────────────────────────────────────── */

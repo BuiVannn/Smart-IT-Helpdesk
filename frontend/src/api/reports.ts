@@ -1,5 +1,11 @@
 import { api, tokenStore } from '@/api/client'
-import type { AgentWorkloadReport, AiAccuracyReport, Overview, ResolutionTimeReport } from '@/types'
+import type {
+  AgentWorkloadReport,
+  AiAccuracyReport,
+  Overview,
+  ResolutionTimeReport,
+  SatisfactionReport,
+} from '@/types'
 
 /** Khoảng thời gian mặc định của dashboard: 30 ngày gần nhất (US-37). */
 export function defaultRange(days = 30): { from: string; to: string } {
@@ -26,6 +32,11 @@ export const reportsApi = {
    *  Quyền: IT_AGENT và ADMIN. */
   aiAccuracy: (from: string, to: string) =>
     api.get<AiAccuracyReport>(`/reports/ai-accuracy?${range(from, to)}`),
+
+  /** Tổng hợp điểm hài lòng theo Agent, loại sự cố, tháng (US-42).
+   *  Quyền: ADMIN. */
+  satisfaction: (from: string, to: string) =>
+    api.get<SatisfactionReport>(`/reports/satisfaction?${range(from, to)}`),
 
   /**
    * Tải file CSV.
